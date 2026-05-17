@@ -5,9 +5,9 @@ struct ComboFormSheet: View {
     @Environment(\.dismiss) private var dismiss
     let combo: ProductCombo?
 
-    @State private var name: String = ""
-    @State private var finalPriceText: String = ""
-    @State private var emoji: String = "🎁"
+    @State private var name = ""
+    @State private var finalPriceText = ""
+    @State private var emoji = "🎁"
     @State private var selectedItems: [ComboItem] = []
     @State private var showEmojiPicker = false
     @State private var isSaving = false
@@ -16,9 +16,10 @@ struct ComboFormSheet: View {
 
     var isEditing: Bool { combo != nil }
     var regularTotal: Double { selectedItems.reduce(0) { $0 + $1.totalPrice } }
+    var finalPrice: Double { Double(finalPriceText) ?? 0 }
     var isValid: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
-        && Double(finalPriceText) != nil
+        && finalPrice > 0
         && !selectedItems.isEmpty
     }
 
@@ -29,7 +30,7 @@ struct ComboFormSheet: View {
                 ScrollView {
                     VStack(spacing: 20) {
                         emojiSection
-                        nameSection
+                        catalogFormField(label: "Nombre del combo", placeholder: "Ej: Combo Desayuno...", text: $name)
                         productsSection
                         priceSection
                     }
@@ -43,26 +44,28 @@ struct ComboFormSheet: View {
                     Button("Cancelar") { dismiss() }.foregroundColor(TinkaColor.subtleText)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Guardar") { save() }
+                    Button(isSaving ? "Guardando..." : "Guardar") { save() }
                         .font(.tinka(15, weight: .bold))
                         .foregroundStyle(isValid ? AnyShapeStyle(LinearGradient.tinkaPrimary) : AnyShapeStyle(Color.gray))
                         .disabled(!isValid || isSaving)
                 }
             }
         }
-        .onAppear {
-            if let c = combo {
-                name = c.name; finalPriceText = String(format: "%.0f", c.finalPrice)
-                emoji = c.emoji; selectedItems = c.items
-            }
-        }
+        .onAppear { prefill() }
     }
 
+    private func prefill() {
+        guard let c = combo else { return }
+        name = c.name; finalPriceText = String(format: "%.0f", c.finalPrice)
+        emoji = c.emoji; selectedItems = c.items
+    }
+
+    // MARK: - Emoji Section
     private var emojiSection: some View {
         VStack(spacing: 8) {
             Button { withAnimation { showEmojiPicker.toggle() } } label: {
                 ZStack {
-                    Circle().fill(LinearGradient.tinkaPrimary.opacity(0.12)).frame(width: 80, height: 80)
+                    Circle().fill(TinkaColor.royalPurple.opacity(0.1)).frame(width: 80, height: 80)
                     Text(emoji).font(.system(size: 40))
                 }
             }
@@ -85,19 +88,15 @@ struct ComboFormSheet: View {
         }
     }
 
-    private var nameSection: some View {
-        FormFieldView(label: "Nombre del combo", placeholder: "Ej: Combo Desayuno, Ejecutivo...", text: $name)
-    }
-
+    // MARK: - Products Section
     private var productsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Productos del combo").font(.tinka(13, weight: .semibold)).foregroundColor(TinkaColor.subtleText)
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Selecciona productos").font(.tinka(13, weight: .semibold)).foregroundColor(TinkaColor.subtleText)
             let active = state.catalogProducts.filter { $0.isActive }
             if active.isEmpty {
                 Text("Agrega productos al catálogo primero")
                     .font(.tinka(13)).foregroundColor(TinkaColor.subtleText)
-                    .padding(14)
-                    .frame(maxWidth: .infinity)
+                    .padding(14).frame(maxWidth: .infinity)
                     .background(Color.white.opacity(0.7))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
@@ -114,37 +113,39 @@ struct ComboFormSheet: View {
 
     @ViewBuilder
     private func productPickerRow(product: CatalogProduct) -> some View {
-        let existingIdx = selectedItems.firstIndex { $0.productId == product.id }
-        let qty = existingIdx.map { selectedItems[$0].qty } ?? 0
+        let idx = selectedItems.firstIndex { $0.productId == product.id }
+        let qty = idx.map { selectedItems[$0].qty } ?? 0
         HStack(spacing: 12) {
             Text(product.emoji).font(.system(size: 22))
             Text(product.name).font(.tinka(14, weight: .medium)).foregroundColor(TinkaColor.darkNavy)
             Spacer()
             Text("Bs.\(product.price, specifier: "%.0f")").font(.tinka(12)).foregroundColor(TinkaColor.subtleText)
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Button {
                     withAnimation {
-                        if let idx = existingIdx {
-                            if selectedItems[idx].qty > 1 { selectedItems[idx].qty -= 1 }
-                            else { selectedItems.remove(at: idx) }
+                        if let i = idx {
+                            if selectedItems[i].qty > 1 { selectedItems[i].qty -= 1 }
+                            else { selectedItems.remove(at: i) }
                         }
                     }
                 } label: {
                     Image(systemName: "minus.circle.fill")
-                        .foregroundColor(qty > 0 ? TinkaColor.red : Color.gray.opacity(0.3))
+                        .foregroundColor(qty > 0 ? TinkaColor.red : Color.gray.opacity(0.25))
                         .font(.system(size: 22))
                 }
                 .disabled(qty == 0)
 
-                Text("\(qty)").font(.tinka(15, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
-                    .frame(width: 22)
+                Text("\(qty)").font(.tinka(15, weight: .bold)).foregroundColor(TinkaColor.darkNavy).frame(width: 22)
 
                 Button {
                     withAnimation {
-                        if let idx = existingIdx {
-                            selectedItems[idx].qty += 1
-                        } else {
-                            selectedItems.append(ComboItem(productId: product.id, productName: product.name, qty: 1, unitPrice: product.price))
+                        if let i = idx { selectedItems[i].qty += 1 }
+                        else {
+                            selectedItems.append(ComboItem(
+                                productId: product.id,
+                                productName: product.name,
+                                qty: 1, unitPrice: product.price
+                            ))
                         }
                     }
                 } label: {
@@ -154,9 +155,10 @@ struct ComboFormSheet: View {
                 }
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
     }
 
+    // MARK: - Price Section
     private var priceSection: some View {
         VStack(spacing: 12) {
             if regularTotal > 0 {
@@ -179,15 +181,14 @@ struct ComboFormSheet: View {
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(TinkaColor.cardStroke))
             }
-            if let fp = Double(finalPriceText), regularTotal > 0, regularTotal > fp {
+            if finalPrice > 0 && regularTotal > finalPrice {
+                let saving = regularTotal - finalPrice
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark.circle.fill").foregroundColor(TinkaColor.green)
-                    Text("Ahorro de Bs. \(regularTotal - fp, specifier: "%.0f") para el cliente")
+                    Text("Ahorro de Bs. \(saving, specifier: "%.0f") para el cliente")
                         .font(.tinka(13, weight: .semibold)).foregroundColor(TinkaColor.green)
                 }
-                .padding(10)
-                .background(TinkaColor.green.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .padding(10).background(TinkaColor.green.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 10))
             }
         }
         .padding(16)
@@ -202,14 +203,11 @@ struct ComboFormSheet: View {
         let c = ProductCombo(
             id: combo?.id ?? UUID(),
             name: name.trimmingCharacters(in: .whitespaces),
-            items: selectedItems,
-            finalPrice: price,
-            emoji: emoji
+            items: selectedItems, finalPrice: price, emoji: emoji
         )
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             if isEditing { state.updateCombo(c) } else { state.addCombo(c) }
-            isSaving = false
-            dismiss()
+            isSaving = false; dismiss()
         }
     }
 }

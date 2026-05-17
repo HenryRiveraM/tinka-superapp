@@ -12,61 +12,61 @@ struct ProductCatalogView: View {
         ZStack {
             LinearGradient.tinkaSoftBackground.ignoresSafeArea()
             VStack(spacing: 0) {
-                header
+                catalogHeader
                 segmentPicker
-                    .padding(.horizontal, 18)
-                    .padding(.top, 4)
-                if selectedTab == 0 {
-                    productList
-                } else {
-                    comboList
-                }
+                    .padding(.horizontal, 18).padding(.vertical, 10)
+                if selectedTab == 0 { productList } else { comboList }
                 Color.clear.frame(height: 110)
             }
         }
         .sheet(isPresented: $showAddProduct) {
-            ProductFormSheet(product: nil) { p in state.addProduct(p) }
+            ProductFormSheet(product: nil) { state.addProduct($0) }
+                .environmentObject(state)
         }
         .sheet(item: $editingProduct) { p in
-            ProductFormSheet(product: p) { updated in state.updateProduct(updated) }
+            ProductFormSheet(product: p) { state.updateProduct($0) }
+                .environmentObject(state)
         }
         .sheet(isPresented: $showAddCombo) {
-            ComboFormSheet(combo: nil)
+            ComboFormSheet(combo: nil).environmentObject(state)
         }
         .sheet(item: $editingCombo) { c in
-            ComboFormSheet(combo: c)
+            ComboFormSheet(combo: c).environmentObject(state)
         }
     }
 
-    private var header: some View {
+    // MARK: - Header
+    private var catalogHeader: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Catálogo").font(.tinka(26, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
-                Text("\(state.catalogProducts.filter { $0.isActive }.count) productos · \(state.combos.filter { $0.isActive }.count) combos")
+                let activeP = state.catalogProducts.filter { $0.isActive }.count
+                let activeC = state.combos.filter { $0.isActive }.count
+                Text("\(activeP) productos · \(activeC) combos activos")
                     .font(.tinka(13)).foregroundColor(TinkaColor.subtleText)
             }
             Spacer()
-            Button { selectedTab == 0 ? (showAddProduct = true) : (showAddCombo = true) } label: {
+            Button {
+                if selectedTab == 0 { showAddProduct = true } else { showAddCombo = true }
+            } label: {
                 Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 28))
+                    .font(.system(size: 30))
                     .foregroundStyle(LinearGradient.tinkaPrimary)
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 16)
-        .padding(.bottom, 4)
+        .padding(.horizontal, 18).padding(.top, 16).padding(.bottom, 4)
     }
 
+    // MARK: - Segment
     private var segmentPicker: some View {
         HStack(spacing: 0) {
-            ForEach(["Productos", "Combos"].indices, id: \.self) { i in
-                let label = ["Productos", "Combos"][i]
+            ForEach(0..<2) { i in
+                let label = i == 0 ? "Productos" : "Combos"
                 Button { withAnimation(.spring(response: 0.3)) { selectedTab = i } } label: {
                     Text(label)
                         .font(.tinka(14, weight: selectedTab == i ? .bold : .medium))
                         .foregroundColor(selectedTab == i ? .white : TinkaColor.subtleText)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity).padding(.vertical, 10)
                         .background(selectedTab == i ? AnyShapeStyle(LinearGradient.tinkaPrimary) : AnyShapeStyle(Color.clear))
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
@@ -88,35 +88,29 @@ struct ProductCatalogView: View {
                     productsByCategory
                 }
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 14)
+            .padding(.horizontal, 18).padding(.top, 4)
         }
     }
 
     @ViewBuilder
     private var productsByCategory: some View {
         let grouped = Dictionary(grouping: state.catalogProducts) { $0.category }
-        let sortedKeys = grouped.keys.sorted()
-        ForEach(sortedKeys, id: \.self) { category in
-            if let items = grouped[category] {
-                categorySection(title: category, items: items)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func categorySection(title: String, items: [CatalogProduct]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title.uppercased())
-                .font(.tinka(11, weight: .bold))
-                .foregroundColor(TinkaColor.subtleText)
-                .padding(.horizontal, 4)
-            ForEach(items) { product in
-                ProductRowCard(product: product,
-                    onEdit: { editingProduct = product },
-                    onToggle: { state.toggleProduct(product.id) },
-                    onDelete: { state.deleteProduct(product.id) }
-                )
+        ForEach(grouped.keys.sorted(), id: \.self) { cat in
+            if let items = grouped[cat] {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(cat.uppercased())
+                        .font(.tinka(11, weight: .bold))
+                        .foregroundColor(TinkaColor.subtleText)
+                        .padding(.horizontal, 4)
+                    ForEach(items) { product in
+                        ProductRowCard(
+                            product: product,
+                            onEdit:   { editingProduct = product },
+                            onToggle: { state.toggleProduct(product.id) },
+                            onDelete: { state.deleteProduct(product.id) }
+                        )
+                    }
+                }
             }
         }
     }
@@ -125,7 +119,7 @@ struct ProductCatalogView: View {
         VStack(spacing: 16) {
             Text("🛍️").font(.system(size: 52))
             Text("Sin productos aún").font(.tinka(18, weight: .semibold)).foregroundColor(TinkaColor.darkNavy)
-            Text("Toca + para agregar tu primer producto al catálogo")
+            Text("Toca + para agregar tu primer producto")
                 .font(.tinka(14)).foregroundColor(TinkaColor.subtleText).multilineTextAlignment(.center)
         }
         .padding(.top, 60)
@@ -135,16 +129,19 @@ struct ProductCatalogView: View {
     private var comboList: some View {
         ScrollView(showsIndicators: false) {
             LazyVStack(spacing: 12) {
-                ForEach(state.combos) { combo in
-                    ComboRowCard(combo: combo,
-                        onEdit: { editingCombo = combo },
-                        onDelete: { state.deleteCombo(combo.id) }
-                    )
+                if state.combos.isEmpty {
+                    emptyCombosState
+                } else {
+                    ForEach(state.combos) { combo in
+                        ComboRowCard(
+                            combo: combo,
+                            onEdit:   { editingCombo = combo },
+                            onDelete: { state.deleteCombo(combo.id) }
+                        )
+                    }
                 }
-                if state.combos.isEmpty { emptyCombosState }
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 14)
+            .padding(.horizontal, 18).padding(.top, 4)
         }
     }
 
@@ -169,45 +166,20 @@ struct ProductRowCard: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            ZStack {
-                let bgColor = product.isActive ? TinkaColor.royalPurple.opacity(0.12) : Color.gray.opacity(0.1)
-                Circle().fill(bgColor).frame(width: 50, height: 50)
-                Text(product.emoji).font(.system(size: 24))
-            }
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Text(product.name)
-                        .font(.tinka(15, weight: .semibold))
-                        .foregroundColor(product.isActive ? TinkaColor.darkNavy : TinkaColor.subtleText)
-                    if !product.isActive {
-                        Text("Inactivo").font(.tinka(10, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(Color.gray).clipShape(Capsule())
-                    }
-                }
-                if !product.description.isEmpty {
-                    Text(product.description).font(.tinka(12)).foregroundColor(TinkaColor.subtleText).lineLimit(1)
-                }
-            }
+            emojiCircle
+            productInfo
             Spacer()
             Text("Bs. \(product.price, specifier: "%.0f")")
-                .font(.tinka(16, weight: .bold))
-                .foregroundColor(TinkaColor.deepBlue)
+                .font(.tinka(16, weight: .bold)).foregroundColor(TinkaColor.deepBlue)
         }
         .padding(14)
         .background(Color.white.opacity(0.85))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(TinkaColor.cardStroke))
-        .opacity(product.isActive ? 1 : 0.65)
+        .opacity(product.isActive ? 1 : 0.6)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) { onDelete() } label: {
-                Label("Eliminar", systemImage: "trash")
-            }
-            Button { onEdit() } label: {
-                Label("Editar", systemImage: "pencil")
-            }
-            .tint(TinkaColor.deepBlue)
+            Button(role: .destructive) { onDelete() } label: { Label("Eliminar", systemImage: "trash") }
+            Button { onEdit() } label: { Label("Editar", systemImage: "pencil") }.tint(TinkaColor.deepBlue)
         }
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             Button { onToggle() } label: {
@@ -215,6 +187,33 @@ struct ProductRowCard: View {
                       systemImage: product.isActive ? "pause.circle" : "play.circle")
             }
             .tint(product.isActive ? TinkaColor.yellow : TinkaColor.green)
+        }
+    }
+
+    private var emojiCircle: some View {
+        ZStack {
+            Circle().fill(product.isActive ? TinkaColor.royalPurple.opacity(0.1) : Color.gray.opacity(0.08))
+                .frame(width: 50, height: 50)
+            Text(product.emoji).font(.system(size: 24))
+        }
+    }
+
+    private var productInfo: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                Text(product.name)
+                    .font(.tinka(15, weight: .semibold))
+                    .foregroundColor(product.isActive ? TinkaColor.darkNavy : TinkaColor.subtleText)
+                if !product.isActive {
+                    Text("Inactivo").font(.tinka(10, weight: .bold))
+                        .foregroundColor(.white).padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Color.gray).clipShape(Capsule())
+                }
+            }
+            if !product.description.isEmpty {
+                Text(product.description)
+                    .font(.tinka(12)).foregroundColor(TinkaColor.subtleText).lineLimit(1)
+            }
         }
     }
 }
@@ -228,38 +227,9 @@ struct ComboRowCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(combo.emoji).font(.system(size: 28))
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(combo.name).font(.tinka(16, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
-                    if combo.saving > 0 {
-                        Text("Ahorro: Bs. \(combo.saving, specifier: "%.0f")")
-                            .font(.tinka(11, weight: .semibold)).foregroundColor(TinkaColor.green)
-                    }
-                }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("Bs. \(combo.finalPrice, specifier: "%.0f")")
-                        .font(.tinka(20, weight: .bold)).foregroundColor(TinkaColor.magenta)
-                    if combo.saving > 0 {
-                        Text("Normal Bs. \(combo.regularPrice, specifier: "%.0f")")
-                            .font(.tinka(11)).foregroundColor(TinkaColor.subtleText)
-                            .strikethrough(true, color: TinkaColor.subtleText)
-                    }
-                }
-            }
+            comboHeader
             Divider()
-            HStack(spacing: 8) {
-                ForEach(combo.items) { item in
-                    HStack(spacing: 4) {
-                        Text("\(item.qty)x").font(.tinka(12, weight: .bold)).foregroundColor(TinkaColor.royalPurple)
-                        Text(item.productName).font(.tinka(12)).foregroundColor(TinkaColor.darkNavy)
-                    }
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(TinkaColor.royalPurple.opacity(0.08))
-                    .clipShape(Capsule())
-                }
-            }
+            itemChips
         }
         .padding(16)
         .background(Color.white.opacity(0.9))
@@ -267,13 +237,44 @@ struct ComboRowCard: View {
         .overlay(RoundedRectangle(cornerRadius: 18).stroke(TinkaColor.cardStroke))
         .shadow(color: TinkaColor.royalPurple.opacity(0.06), radius: 10, y: 4)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) { onDelete() } label: {
-                Label("Eliminar", systemImage: "trash")
+            Button(role: .destructive) { onDelete() } label: { Label("Eliminar", systemImage: "trash") }
+            Button { onEdit() } label: { Label("Editar", systemImage: "pencil") }.tint(TinkaColor.deepBlue)
+        }
+    }
+
+    private var comboHeader: some View {
+        HStack {
+            Text(combo.emoji).font(.system(size: 28))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(combo.name).font(.tinka(16, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
+                if combo.saving > 0 {
+                    Text("Ahorro: Bs. \(combo.saving, specifier: "%.0f")")
+                        .font(.tinka(11, weight: .semibold)).foregroundColor(TinkaColor.green)
+                }
             }
-            Button { onEdit() } label: {
-                Label("Editar", systemImage: "pencil")
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("Bs. \(combo.finalPrice, specifier: "%.0f")")
+                    .font(.tinka(20, weight: .bold)).foregroundColor(TinkaColor.magenta)
+                if combo.saving > 0 {
+                    Text("Bs. \(combo.regularPrice, specifier: "%.0f")")
+                        .font(.tinka(11)).foregroundColor(TinkaColor.subtleText)
+                        .strikethrough(true, color: TinkaColor.subtleText)
+                }
             }
-            .tint(TinkaColor.deepBlue)
+        }
+    }
+
+    private var itemChips: some View {
+        HStack(spacing: 8) {
+            ForEach(combo.items) { item in
+                Text("\(item.qty)x \(item.productName)")
+                    .font(.tinka(12, weight: .medium))
+                    .foregroundColor(TinkaColor.royalPurple)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(TinkaColor.royalPurple.opacity(0.08))
+                    .clipShape(Capsule())
+            }
         }
     }
 }

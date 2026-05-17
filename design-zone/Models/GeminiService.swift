@@ -1,89 +1,53 @@
 import Foundation
 
-// MARK: - Gemini AI Service
-// Uses Gemini 2.0 Flash via REST API
+// MARK: - Tinka AI Service (Secure Supabase Proxy)
 
 actor GeminiService {
     static let shared = GeminiService()
-    private var apiKey: String = ""
 
-    func setApiKey(_ key: String) { apiKey = key }
+    private let endpointURL = URL(string: "https://jhsnshxuxlnwkkbszcjx.supabase.co/functions/v1/tinka-ai")!
+    private let anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impoc25zaHh1eGxud2trYnN6Y2p4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5ODY3OTcsImV4cCI6MjA5NDU2Mjc5N30.ZAnGMYebwuKUBPu_lW13h9cQH4J59Uc91uyQBHAFU_0"
 
     func chat(userMessage: String, businessContext: String) async throws -> String {
-        guard !apiKey.isEmpty else {
-            throw GeminiError.noApiKey
-        }
-
-        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=\(apiKey)")!
-        var request = URLRequest(url: url)
+        var request = URLRequest(url: endpointURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = 30
 
-        let systemPrompt = """
-Eres Tinka IA, el copiloto financiero inteligente de Doña María, una micro-emprendedora boliviana. Eres amigable, directo, empático y usas datos reales del negocio.
-Responde SIEMPRE en español boliviano, de forma concisa (máximo 4 párrafos cortos). Usa emojis relevantes al inicio de cada punto clave. Llama a la usuaria "Doña María" cuando sea natural.
-
-\(businessContext)
-
-Instrucciones:
-- Responde basándote en los datos del contexto del negocio arriba
-- Si te preguntan sobre productos o combos, usa los datos del catálogo
-- Si no hay datos suficientes, da consejos prácticos
-- Nunca inventes datos que no estén en el contexto
-- Usa números concretos del contexto cuando sea relevante
-"""
-
-        let body: [String: Any] = [
-            "contents": [
-                ["role": "user", "parts": [["text": systemPrompt + "\n\nPregunta del usuario: " + userMessage]]]
-            ],
-            "generationConfig": [
-                "temperature": 0.8,
-                "maxOutputTokens": 512,
-                "topP": 0.9
-            ]
+        let body: [String: String] = [
+            "message": userMessage,
+            "context": businessContext
         ]
-
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw GeminiError.networkError
+        guard let http = response as? HTTPURLResponse else {
+            throw TinkaAIError.networkError
         }
 
-        if httpResponse.statusCode == 400 {
-            throw GeminiError.invalidApiKey
-        }
-
-        if httpResponse.statusCode != 200 {
-            throw GeminiError.httpError(httpResponse.statusCode)
+        guard http.statusCode == 200 else {
+            throw TinkaAIError.httpError(http.statusCode)
         }
 
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let candidates = json["candidates"] as? [[String: Any]],
-              let first = candidates.first,
-              let content = first["content"] as? [String: Any],
-              let parts = content["parts"] as? [[String: Any]],
-              let text = parts.first?["text"] as? String else {
-            throw GeminiError.parseError
+              let reply = json["reply"] as? String, !reply.isEmpty else {
+            throw TinkaAIError.parseError
         }
 
-        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return reply
     }
 }
 
-enum GeminiError: LocalizedError {
-    case noApiKey, invalidApiKey, networkError, parseError, httpError(Int)
+enum TinkaAIError: LocalizedError {
+    case networkError, parseError, httpError(Int)
 
     var errorDescription: String? {
         switch self {
-        case .noApiKey:       return "API key no configurada"
-        case .invalidApiKey:  return "API key inválida. Verifica tu clave de Gemini."
-        case .networkError:   return "Error de conexión. Verifica tu internet."
-        case .parseError:     return "Error al procesar la respuesta de Gemini."
-        case .httpError(let code): return "Error HTTP \(code) de Gemini."
+        case .networkError:        return "Sin conexión a internet. Revisa tu red."
+        case .parseError:          return "Error al procesar la respuesta."
+        case .httpError(let code): return "Error \(code) del servidor."
         }
     }
 }
