@@ -1,9 +1,10 @@
 import SwiftUI
 
 struct TinkaScoreCard: View {
+    @EnvironmentObject var state: AppState
     let animate: Bool
-    private let score = TinkaSampleData.tinkaScore
 
+    private var score: Int { state.tinkaScore }
     private var progress: Double { animate ? Double(score) / 100.0 : 0 }
 
     var body: some View {

@@ -4,26 +4,28 @@ struct TinkaTabBar: View {
     @Binding var selected: TinkaTab
 
     private let items: [(TinkaTab, String, String)] = [
-        (.home, "house.fill", "Inicio"),
-        (.sales, "cart.fill", "Ventas"),
-        (.voice, "mic.fill", "Voz"),
-        (.chat, "sparkles", "IA"),
-        (.wallet, "creditcard.fill", "Wallet")
+        (.home,    "house.fill",      "Inicio"),
+        (.sales,   "cart.fill",       "Ventas"),
+        (.voice,   "mic.fill",        "Voz"),
+        (.chat,    "sparkles",        "IA"),
+        (.wallet,  "creditcard.fill", "Wallet"),
+        (.profile, "person.fill",     "Perfil")
     ]
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 0) {
             ForEach(items, id: \.0) { item in
                 tabButton(tab: item.0, icon: item.1, label: item.2)
             }
         }
-        .padding(8)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 6)
         .background(
-            Capsule(style: .continuous)
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(.ultraThinMaterial)
-                .overlay(Capsule().fill(Color.white.opacity(0.55)))
+                .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).fill(Color.white.opacity(0.55)))
         )
-        .overlay(Capsule().stroke(Color.white.opacity(0.7), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Color.white.opacity(0.7), lineWidth: 1))
         .shadow(color: TinkaColor.royalPurple.opacity(0.18), radius: 20, x: 0, y: 8)
     }
 
@@ -49,25 +51,29 @@ struct TinkaTabBar: View {
     private func standardButton(icon: String, label: String, isSelected: Bool) -> some View {
         VStack(spacing: 2) {
             Image(systemName: icon)
-                .font(.system(size: 18, weight: .semibold))
+                .font(.system(size: 16, weight: .semibold))
             Text(label)
-                .font(.tinka(10, weight: .semibold))
+                .font(.tinka(9, weight: .semibold))
         }
         .foregroundStyle(isSelected ? AnyShapeStyle(LinearGradient.tinkaPrimary) : AnyShapeStyle(TinkaColor.subtleText))
         .padding(.vertical, 8)
+        .padding(.horizontal, 2)
     }
 
     private func voiceButton(isSelected: Bool) -> some View {
         ZStack {
             Circle()
                 .fill(LinearGradient.tinkaPrimary)
-                .frame(width: 52, height: 52)
+                .frame(width: 48, height: 48)
                 .shadow(color: TinkaColor.magenta.opacity(0.5), radius: 14, x: 0, y: 6)
             Image(systemName: "mic.fill")
-                .font(.system(size: 20, weight: .bold))
+                .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(.white)
         }
-        .offset(y: -10)
-        .scaleEffect(isSelected ? 1.05 : 1.0)
+        .offset(y: -8)
+        .scaleEffect(isSelected ? 1.08 : 1.0)
+        .animation(.spring(response: 0.3), value: isSelected)
     }
 }
+
+#Preview { TinkaTabBar(selected: .constant(.home)) }

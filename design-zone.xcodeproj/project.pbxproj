@@ -8,14 +8,22 @@
 
 /* Begin PBXBuildFile section */
 		08A560F2206464E2E666CEEA /* HeroBalanceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A96B8A165F4E78BF720F4A67 /* HeroBalanceCard.swift */; };
+		09EF9595903FCCEA32C40804 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F70752F6C0ACA19174E34E2 /* ProfileView.swift */; };
+		200494EFA28125E73034ED25 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E644DC0FFDF6D36B8AF8463D /* AppState.swift */; };
 		32F114B294AFAF28EF7B2301 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C107C94DBEED66369FB79A4B /* LaunchScreen.storyboard */; };
+		3B1C7DF49EED93C1947F7FEF /* SalesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63F868B6005BEEB08EC83575 /* SalesView.swift */; };
 		3F1A7B759847D656BA987F2F /* HomeDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EC3D77C58A44F9B9F90173A /* HomeDashboardView.swift */; };
+		41CB5CD8B30404DB9587AE99 /* TinkaChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ACEB3234070AE003E6BF4B2 /* TinkaChatView.swift */; };
 		4EAF0E8E6350CB80D317877A /* TinkaTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44FC836039282F21A35A2243 /* TinkaTheme.swift */; };
 		51D4EB08CE4D3B2977D1AA01 /* PlaceholderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C8527C68ECB2F2956FD1E45 /* PlaceholderScreen.swift */; };
 		5318E6F41B8A6E7263FEF8B7 /* AIInsightsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8FB54C4E85E3E5D8D3E8A0C /* AIInsightsSection.swift */; };
+		548E5AEAA24D67E919AEC597 /* VoiceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D50D5D3D55D2E9082E9F47B6 /* VoiceView.swift */; };
+		57910BE8FEB03268A47C0616 /* WalletView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 971D02916C206E3C65ABB0CD /* WalletView.swift */; };
 		6D231F6EF0E8442B1A6F322C /* QuickActionsGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E026130BB3CF0BA7E18FD8 /* QuickActionsGrid.swift */; };
 		70DEEB0CE4DE576301FD90F7 /* TinkaTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F43E2F5C1943545E6D34C494 /* TinkaTabBar.swift */; };
 		7E64D7D9BDAF003EF327C0B2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 378CE7BDFAD3BE200834E2E6 /* Assets.xcassets */; };
+		8D4262F824F12C0374898D2C /* MicrocreditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CAC9176724BA267DDACFA00 /* MicrocreditView.swift */; };
+		926BC830C75B6F6CAE1CEB9E /* AddSaleSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D24697E7DD172E9DB23C9B3D /* AddSaleSheet.swift */; };
 		B5AC69BA0D7AD4070773308A /* HomeHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4E9A015949300902E15279 /* HomeHeaderView.swift */; };
 		C451C4B707F600372AED2D28 /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68AC5D6F6F0D8E88DD5FA3DB /* SampleData.swift */; };
 		C49D47737097022C60D36336 /* TinkaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A148217D48266BAD5A8A9C0 /* TinkaApp.swift */; };
@@ -26,14 +34,19 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		1ACEB3234070AE003E6BF4B2 /* TinkaChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaChatView.swift; sourceTree = "<group>"; };
 		1EC3D77C58A44F9B9F90173A /* HomeDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeDashboardView.swift; sourceTree = "<group>"; };
 		378CE7BDFAD3BE200834E2E6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		44FC836039282F21A35A2243 /* TinkaTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaTheme.swift; sourceTree = "<group>"; };
 		4D4E9A015949300902E15279 /* HomeHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeHeaderView.swift; sourceTree = "<group>"; };
 		5AA2F9211CC3AC79727D6FDB /* design-zone.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "design-zone.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		612C2C9C83BBFA562675FDBB /* WeeklyTrendCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyTrendCard.swift; sourceTree = "<group>"; };
+		63F868B6005BEEB08EC83575 /* SalesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SalesView.swift; sourceTree = "<group>"; };
 		68AC5D6F6F0D8E88DD5FA3DB /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
+		7CAC9176724BA267DDACFA00 /* MicrocreditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrocreditView.swift; sourceTree = "<group>"; };
+		7F70752F6C0ACA19174E34E2 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		943FA8C62346285B71990D66 /* KPIRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KPIRow.swift; sourceTree = "<group>"; };
+		971D02916C206E3C65ABB0CD /* WalletView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WalletView.swift; sourceTree = "<group>"; };
 		992BBDF353627A9A7D41A991 /* TinkaScoreCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaScoreCard.swift; sourceTree = "<group>"; };
 		9A148217D48266BAD5A8A9C0 /* TinkaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaApp.swift; sourceTree = "<group>"; };
 		9C8527C68ECB2F2956FD1E45 /* PlaceholderScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderScreen.swift; sourceTree = "<group>"; };
@@ -41,8 +54,11 @@
 		A96B8A165F4E78BF720F4A67 /* HeroBalanceCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeroBalanceCard.swift; sourceTree = "<group>"; };
 		BA0713200B402CD96B31C7B3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C635507D74FDF176C3D3D45D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		D24697E7DD172E9DB23C9B3D /* AddSaleSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSaleSheet.swift; sourceTree = "<group>"; };
+		D50D5D3D55D2E9082E9F47B6 /* VoiceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceView.swift; sourceTree = "<group>"; };
 		D8FB54C4E85E3E5D8D3E8A0C /* AIInsightsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIInsightsSection.swift; sourceTree = "<group>"; };
 		E212E173B530F7F74E9629D3 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		E644DC0FFDF6D36B8AF8463D /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		F43E2F5C1943545E6D34C494 /* TinkaTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaTabBar.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -91,17 +107,40 @@
 			isa = PBXGroup;
 			children = (
 				9C8527C68ECB2F2956FD1E45 /* PlaceholderScreen.swift */,
+				73FE5384B6C225BA838EA452 /* Chat */,
+				586A569F9E2E43664A6E67CB /* Credit */,
 				0D425725C7A3E3A66482562E /* Home */,
+				AE85ED71AC66151799C64630 /* Profile */,
+				EB5AE03AFDCC2B6AABCD98A8 /* Sales */,
+				EEBB8CF53E4C588EACA4E76B /* Voice */,
+				AFAA1AAA1371B2B59E242429 /* Wallet */,
 			);
 			path = Screens;
+			sourceTree = "<group>";
+		};
+		586A569F9E2E43664A6E67CB /* Credit */ = {
+			isa = PBXGroup;
+			children = (
+				7CAC9176724BA267DDACFA00 /* MicrocreditView.swift */,
+			);
+			path = Credit;
 			sourceTree = "<group>";
 		};
 		69A8B68452B10E4150E18D3E /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				E644DC0FFDF6D36B8AF8463D /* AppState.swift */,
 				68AC5D6F6F0D8E88DD5FA3DB /* SampleData.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		73FE5384B6C225BA838EA452 /* Chat */ = {
+			isa = PBXGroup;
+			children = (
+				1ACEB3234070AE003E6BF4B2 /* TinkaChatView.swift */,
+			);
+			path = Chat;
 			sourceTree = "<group>";
 		};
 		9D8DF780426BA982149A6A11 /* App */ = {
@@ -110,6 +149,22 @@
 				9A148217D48266BAD5A8A9C0 /* TinkaApp.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		AE85ED71AC66151799C64630 /* Profile */ = {
+			isa = PBXGroup;
+			children = (
+				7F70752F6C0ACA19174E34E2 /* ProfileView.swift */,
+			);
+			path = Profile;
+			sourceTree = "<group>";
+		};
+		AFAA1AAA1371B2B59E242429 /* Wallet */ = {
+			isa = PBXGroup;
+			children = (
+				971D02916C206E3C65ABB0CD /* WalletView.swift */,
+			);
+			path = Wallet;
 			sourceTree = "<group>";
 		};
 		B71B300D37AB57ED7A82E2AA = {
@@ -133,6 +188,23 @@
 				1305A712ED675175D736793B /* Theme */,
 			);
 			path = "design-zone";
+			sourceTree = "<group>";
+		};
+		EB5AE03AFDCC2B6AABCD98A8 /* Sales */ = {
+			isa = PBXGroup;
+			children = (
+				D24697E7DD172E9DB23C9B3D /* AddSaleSheet.swift */,
+				63F868B6005BEEB08EC83575 /* SalesView.swift */,
+			);
+			path = Sales;
+			sourceTree = "<group>";
+		};
+		EEBB8CF53E4C588EACA4E76B /* Voice */ = {
+			isa = PBXGroup;
+			children = (
+				D50D5D3D55D2E9082E9F47B6 /* VoiceView.swift */,
+			);
+			path = Voice;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -202,18 +274,26 @@
 			buildActionMask = 2147483647;
 			files = (
 				5318E6F41B8A6E7263FEF8B7 /* AIInsightsSection.swift in Sources */,
+				926BC830C75B6F6CAE1CEB9E /* AddSaleSheet.swift in Sources */,
+				200494EFA28125E73034ED25 /* AppState.swift in Sources */,
 				08A560F2206464E2E666CEEA /* HeroBalanceCard.swift in Sources */,
 				3F1A7B759847D656BA987F2F /* HomeDashboardView.swift in Sources */,
 				B5AC69BA0D7AD4070773308A /* HomeHeaderView.swift in Sources */,
 				E497046FD6F8C7C8E4FFEB66 /* KPIRow.swift in Sources */,
+				8D4262F824F12C0374898D2C /* MicrocreditView.swift in Sources */,
 				51D4EB08CE4D3B2977D1AA01 /* PlaceholderScreen.swift in Sources */,
+				09EF9595903FCCEA32C40804 /* ProfileView.swift in Sources */,
 				6D231F6EF0E8442B1A6F322C /* QuickActionsGrid.swift in Sources */,
 				EA1BA37FCC538C24FE66903A /* RootView.swift in Sources */,
+				3B1C7DF49EED93C1947F7FEF /* SalesView.swift in Sources */,
 				C451C4B707F600372AED2D28 /* SampleData.swift in Sources */,
 				C49D47737097022C60D36336 /* TinkaApp.swift in Sources */,
+				41CB5CD8B30404DB9587AE99 /* TinkaChatView.swift in Sources */,
 				D827A2112CA28EB22BBAAAE2 /* TinkaScoreCard.swift in Sources */,
 				70DEEB0CE4DE576301FD90F7 /* TinkaTabBar.swift in Sources */,
 				4EAF0E8E6350CB80D317877A /* TinkaTheme.swift in Sources */,
+				548E5AEAA24D67E919AEC597 /* VoiceView.swift in Sources */,
+				57910BE8FEB03268A47C0616 /* WalletView.swift in Sources */,
 				C7EDB87B064BD659F723C8FF /* WeeklyTrendCard.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -1,10 +1,15 @@
 import SwiftUI
 
 struct KPIRow: View {
+    @EnvironmentObject var state: AppState
+    var growthPct: Int {
+        let prev = max(state.weekSales * 0.85, 1)
+        return Int(((state.weekSales - prev) / prev) * 100)
+    }
     var body: some View {
         HStack(spacing: 12) {
-            kpi(icon: "leaf.fill", title: "Salud", value: "Saludable", tint: TinkaColor.green)
-            kpi(icon: "chart.bar.fill", title: "Crecimiento", value: "+18%", tint: TinkaColor.deepBlue)
+            kpi(icon: "leaf.fill", title: "Salud", value: state.tinkaScore > 75 ? "Saludable" : "Regular", tint: TinkaColor.green)
+            kpi(icon: "chart.bar.fill", title: "Crecimiento", value: "+\(growthPct)%", tint: TinkaColor.deepBlue)
             kpi(icon: "creditcard.fill", title: "Cashflow", value: "Estable", tint: TinkaColor.royalPurple)
         }
     }

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct HomeDashboardView: View {
+    @EnvironmentObject var state: AppState
     @State private var animateScore = false
 
     var body: some View {
@@ -15,7 +16,7 @@ struct HomeDashboardView: View {
                     AIInsightsSection()
                     QuickActionsGrid()
                     WeeklyTrendCard()
-                    Color.clear.frame(height: 110) // tab bar spacer
+                    Color.clear.frame(height: 110)
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 8)
@@ -45,4 +46,4 @@ struct HomeDashboardView: View {
     }
 }
 
-#Preview { HomeDashboardView() }
+#Preview { HomeDashboardView().environmentObject(AppState.shared) }
