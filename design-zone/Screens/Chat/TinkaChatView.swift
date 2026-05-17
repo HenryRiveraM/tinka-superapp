@@ -8,7 +8,6 @@ struct TinkaChatView: View {
     @EnvironmentObject var state: AppState
     @State private var inputText = ""
     @State private var isTyping = false
-    @State private var errorMessage: String? = nil
     @FocusState private var inputFocused: Bool
 
     private let prompts: [SuggestedPrompt] = [
@@ -59,7 +58,7 @@ struct TinkaChatView: View {
             Spacer()
             if !state.chatMessages.isEmpty {
                 Button {
-                    withAnimation { state.chatMessages.removeAll(); errorMessage = nil }
+                    withAnimation { state.chatMessages.removeAll() }
                 } label: {
                     Image(systemName: "trash")
                         .font(.system(size: 13)).foregroundColor(TinkaColor.subtleText)
@@ -81,7 +80,6 @@ struct TinkaChatView: View {
                         ChatBubble(message: msg).id(msg.id)
                     }
                     if isTyping { typingIndicator.id("typing") }
-                    if let err = errorMessage { errorBubble(err).id("err") }
                     Color.clear.frame(height: 8).id("bottom")
                 }
                 .padding(.horizontal, 16).padding(.top, 12)
@@ -176,56 +174,27 @@ struct TinkaChatView: View {
         }
     }
 
-    @ViewBuilder
-    private func errorBubble(_ msg: String) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "wifi.slash").foregroundColor(TinkaColor.yellow)
-            Text(msg).font(.tinka(12)).foregroundColor(TinkaColor.darkNavy)
-            Spacer()
-            Button { withAnimation { errorMessage = nil } } label: {
-                Image(systemName: "xmark").font(.system(size: 11, weight: .bold))
-                    .foregroundColor(TinkaColor.subtleText)
-            }
-        }
-        .padding(10)
-        .background(TinkaColor.yellow.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(TinkaColor.yellow.opacity(0.3)))
-        .transition(.opacity)
-    }
-
     // MARK: - Send Logic
     private func sendMessage(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty, !isTyping else { return }
         inputText = ""
         inputFocused = false
-        errorMessage = nil
         withAnimation { state.chatMessages.append(ChatMessage(text: trimmed, isUser: true)) }
         isTyping = true
-
         let context = state.businessContextForAI
 
+        let capturedState = state
         Task {
-            do {
-                let reply = try await GeminiService.shared.chat(
-                    userMessage: trimmed,
-                    businessContext: context
-                )
-                await MainActor.run {
-                    withAnimation {
-                        isTyping = false
-                        state.chatMessages.append(ChatMessage(text: reply, isUser: false))
-                    }
-                }
-            } catch {
-                NSLog("[Tinka Chat] AI failed, using local fallback: \(error.localizedDescription)")
-                let fallback = TinkaLocalAI.reply(for: trimmed, state: state)
-                await MainActor.run {
-                    withAnimation {
-                        isTyping = false
-                        state.chatMessages.append(ChatMessage(text: fallback, isUser: false))
-                    }
+            let reply = await GeminiService.shared.chat(
+                userMessage: trimmed,
+                businessContext: context,
+                state: capturedState
+            )
+            await MainActor.run {
+                withAnimation {
+                    isTyping = false
+                    state.chatMessages.append(ChatMessage(text: reply, isUser: false))
                 }
             }
         }

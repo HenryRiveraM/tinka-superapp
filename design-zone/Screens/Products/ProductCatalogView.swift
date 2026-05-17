@@ -7,6 +7,8 @@ struct ProductCatalogView: View {
     @State private var editingProduct: CatalogProduct? = nil
     @State private var editingCombo: ProductCombo? = nil
     @State private var selectedTab = 0
+    @State private var deleteProductAlert: CatalogProduct? = nil
+    @State private var deleteComboAlert: ProductCombo? = nil
 
     var body: some View {
         ZStack {
@@ -20,11 +22,11 @@ struct ProductCatalogView: View {
             }
         }
         .sheet(isPresented: $showAddProduct) {
-            ProductFormSheet(product: nil) { state.addProduct($0) }
+            ProductFormSheet(product: nil) { p in state.addProduct(p) }
                 .environmentObject(state)
         }
         .sheet(item: $editingProduct) { p in
-            ProductFormSheet(product: p) { state.updateProduct($0) }
+            ProductFormSheet(product: p) { updated in state.updateProduct(updated) }
                 .environmentObject(state)
         }
         .sheet(isPresented: $showAddCombo) {
@@ -32,6 +34,30 @@ struct ProductCatalogView: View {
         }
         .sheet(item: $editingCombo) { c in
             ComboFormSheet(combo: c).environmentObject(state)
+        }
+        .alert("Eliminar producto", isPresented: Binding(
+            get: { deleteProductAlert != nil },
+            set: { if !$0 { deleteProductAlert = nil } }
+        )) {
+            Button("Eliminar", role: .destructive) {
+                if let p = deleteProductAlert { state.deleteProduct(p.id) }
+                deleteProductAlert = nil
+            }
+            Button("Cancelar", role: .cancel) { deleteProductAlert = nil }
+        } message: {
+            Text("¿Eliminar \"\(deleteProductAlert?.name ?? "")\" del catálogo? Esta acción no se puede deshacer.")
+        }
+        .alert("Eliminar combo", isPresented: Binding(
+            get: { deleteComboAlert != nil },
+            set: { if !$0 { deleteComboAlert = nil } }
+        )) {
+            Button("Eliminar", role: .destructive) {
+                if let c = deleteComboAlert { state.deleteCombo(c.id) }
+                deleteComboAlert = nil
+            }
+            Button("Cancelar", role: .cancel) { deleteComboAlert = nil }
+        } message: {
+            Text("¿Eliminar el combo \"\(deleteComboAlert?.name ?? "")\"?")
         }
     }
 
@@ -49,9 +75,15 @@ struct ProductCatalogView: View {
             Button {
                 if selectedTab == 0 { showAddProduct = true } else { showAddCombo = true }
             } label: {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 30))
-                    .foregroundStyle(LinearGradient.tinkaPrimary)
+                HStack(spacing: 6) {
+                    Image(systemName: "plus").font(.system(size: 13, weight: .bold))
+                    Text("Nuevo").font(.tinka(14, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 14).padding(.vertical, 9)
+                .background(LinearGradient.tinkaPrimary)
+                .clipShape(Capsule())
+                .shadow(color: TinkaColor.magenta.opacity(0.3), radius: 8, y: 4)
             }
         }
         .padding(.horizontal, 18).padding(.top, 16).padding(.bottom, 4)
@@ -105,9 +137,9 @@ struct ProductCatalogView: View {
                     ForEach(items) { product in
                         ProductRowCard(
                             product: product,
-                            onEdit:   { editingProduct = product },
+                            onEdit: { editingProduct = product },
                             onToggle: { state.toggleProduct(product.id) },
-                            onDelete: { state.deleteProduct(product.id) }
+                            onDelete: { deleteProductAlert = product }
                         )
                     }
                 }
@@ -119,8 +151,18 @@ struct ProductCatalogView: View {
         VStack(spacing: 16) {
             Text("🛍️").font(.system(size: 52))
             Text("Sin productos aún").font(.tinka(18, weight: .semibold)).foregroundColor(TinkaColor.darkNavy)
-            Text("Toca + para agregar tu primer producto")
+            Text("Toca **Nuevo** para agregar tu primer producto")
                 .font(.tinka(14)).foregroundColor(TinkaColor.subtleText).multilineTextAlignment(.center)
+            Button { showAddProduct = true } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "plus").font(.system(size: 14, weight: .bold))
+                    Text("Crear primer producto").font(.tinka(15, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 20).padding(.vertical, 12)
+                .background(LinearGradient.tinkaPrimary)
+                .clipShape(Capsule())
+            }
         }
         .padding(.top, 60)
     }
@@ -135,8 +177,8 @@ struct ProductCatalogView: View {
                     ForEach(state.combos) { combo in
                         ComboRowCard(
                             combo: combo,
-                            onEdit:   { editingCombo = combo },
-                            onDelete: { state.deleteCombo(combo.id) }
+                            onEdit: { editingCombo = combo },
+                            onDelete: { deleteComboAlert = combo }
                         )
                     }
                 }
@@ -149,14 +191,24 @@ struct ProductCatalogView: View {
         VStack(spacing: 16) {
             Text("🎁").font(.system(size: 52))
             Text("Sin combos aún").font(.tinka(18, weight: .semibold)).foregroundColor(TinkaColor.darkNavy)
-            Text("Crea combos para ofrecer promociones especiales a tus clientes")
+            Text("Crea combos para ofrecer promociones especiales")
                 .font(.tinka(14)).foregroundColor(TinkaColor.subtleText).multilineTextAlignment(.center)
+            Button { showAddCombo = true } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "plus").font(.system(size: 14, weight: .bold))
+                    Text("Crear primer combo").font(.tinka(15, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 20).padding(.vertical, 12)
+                .background(LinearGradient.tinkaPrimary)
+                .clipShape(Capsule())
+            }
         }
         .padding(.top, 60)
     }
 }
 
-// MARK: - Product Row Card
+// MARK: - Product Row Card (with visible edit button)
 
 struct ProductRowCard: View {
     let product: CatalogProduct
@@ -169,14 +221,14 @@ struct ProductRowCard: View {
             emojiCircle
             productInfo
             Spacer()
-            Text("Bs. \(product.price, specifier: "%.0f")")
-                .font(.tinka(16, weight: .bold)).foregroundColor(TinkaColor.deepBlue)
+            priceAndActions
         }
         .padding(14)
-        .background(Color.white.opacity(0.85))
+        .background(Color.white.opacity(0.9))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(TinkaColor.cardStroke))
-        .opacity(product.isActive ? 1 : 0.6)
+        .shadow(color: Color.black.opacity(0.04), radius: 6, y: 2)
+        .opacity(product.isActive ? 1 : 0.65)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) { onDelete() } label: { Label("Eliminar", systemImage: "trash") }
             Button { onEdit() } label: { Label("Editar", systemImage: "pencil") }.tint(TinkaColor.deepBlue)
@@ -192,7 +244,8 @@ struct ProductRowCard: View {
 
     private var emojiCircle: some View {
         ZStack {
-            Circle().fill(product.isActive ? TinkaColor.royalPurple.opacity(0.1) : Color.gray.opacity(0.08))
+            Circle()
+                .fill(product.isActive ? TinkaColor.royalPurple.opacity(0.1) : Color.gray.opacity(0.08))
                 .frame(width: 50, height: 50)
             Text(product.emoji).font(.system(size: 24))
         }
@@ -205,20 +258,43 @@ struct ProductRowCard: View {
                     .font(.tinka(15, weight: .semibold))
                     .foregroundColor(product.isActive ? TinkaColor.darkNavy : TinkaColor.subtleText)
                 if !product.isActive {
-                    Text("Inactivo").font(.tinka(10, weight: .bold))
-                        .foregroundColor(.white).padding(.horizontal, 6).padding(.vertical, 2)
-                        .background(Color.gray).clipShape(Capsule())
+                    Text("Inactivo")
+                        .font(.tinka(10, weight: .bold)).foregroundColor(.white)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Color.gray.opacity(0.6)).clipShape(Capsule())
                 }
             }
             if !product.description.isEmpty {
                 Text(product.description)
                     .font(.tinka(12)).foregroundColor(TinkaColor.subtleText).lineLimit(1)
+            } else {
+                Text(product.category)
+                    .font(.tinka(11)).foregroundColor(TinkaColor.subtleText.opacity(0.7))
+            }
+        }
+    }
+
+    private var priceAndActions: some View {
+        VStack(alignment: .trailing, spacing: 8) {
+            Text("Bs. \(product.price, specifier: "%.0f")")
+                .font(.tinka(16, weight: .bold)).foregroundColor(TinkaColor.deepBlue)
+            // Visible edit button
+            Button(action: onEdit) {
+                HStack(spacing: 4) {
+                    Image(systemName: "pencil").font(.system(size: 11, weight: .bold))
+                    Text("Editar").font(.tinka(11, weight: .semibold))
+                }
+                .foregroundColor(TinkaColor.royalPurple)
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .background(TinkaColor.royalPurple.opacity(0.1))
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(TinkaColor.royalPurple.opacity(0.25)))
             }
         }
     }
 }
 
-// MARK: - Combo Row Card
+// MARK: - Combo Row Card (with visible edit button)
 
 struct ComboRowCard: View {
     let combo: ProductCombo
@@ -229,7 +305,11 @@ struct ComboRowCard: View {
         VStack(alignment: .leading, spacing: 12) {
             comboHeader
             Divider()
-            itemChips
+            HStack {
+                itemChips
+                Spacer()
+                editDeleteButtons
+            }
         }
         .padding(16)
         .background(Color.white.opacity(0.9))
@@ -269,11 +349,32 @@ struct ComboRowCard: View {
         HStack(spacing: 8) {
             ForEach(combo.items) { item in
                 Text("\(item.qty)x \(item.productName)")
-                    .font(.tinka(12, weight: .medium))
-                    .foregroundColor(TinkaColor.royalPurple)
+                    .font(.tinka(12, weight: .medium)).foregroundColor(TinkaColor.royalPurple)
                     .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(TinkaColor.royalPurple.opacity(0.08))
-                    .clipShape(Capsule())
+                    .background(TinkaColor.royalPurple.opacity(0.08)).clipShape(Capsule())
+            }
+        }
+    }
+
+    private var editDeleteButtons: some View {
+        HStack(spacing: 8) {
+            Button(action: onEdit) {
+                HStack(spacing: 4) {
+                    Image(systemName: "pencil").font(.system(size: 11, weight: .bold))
+                    Text("Editar").font(.tinka(11, weight: .semibold))
+                }
+                .foregroundColor(TinkaColor.royalPurple)
+                .padding(.horizontal, 10).padding(.vertical, 5)
+                .background(TinkaColor.royalPurple.opacity(0.1)).clipShape(Capsule())
+                .overlay(Capsule().stroke(TinkaColor.royalPurple.opacity(0.25)))
+            }
+            Button(action: onDelete) {
+                Image(systemName: "trash")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(TinkaColor.red)
+                    .padding(7)
+                    .background(TinkaColor.red.opacity(0.08)).clipShape(Circle())
+                    .overlay(Circle().stroke(TinkaColor.red.opacity(0.2)))
             }
         }
     }

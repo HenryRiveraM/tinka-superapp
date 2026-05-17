@@ -1,31 +1,34 @@
 import SwiftUI
 import Speech
 
-enum VoiceFlowState: Equatable { case idle, listening, processing, result }
+// MARK: - Flow State
+enum VoiceFlowState: Equatable {
+    case idle, listening, processing, confirmed, success
+}
 
+// MARK: - Voice View
 struct VoiceView: View {
     @EnvironmentObject var state: AppState
     @StateObject private var speech = SpeechRecognizer()
+
     @State private var flowState: VoiceFlowState = .idle
     @State private var parsedProducts: [SaleProduct] = []
-    @State private var pulseScale: CGFloat = 1.0
-    @State private var showSuccess = false
     @State private var showPermissionAlert = false
 
     var parsedTotal: Double { parsedProducts.reduce(0) { $0 + $1.subtotal } }
 
     var body: some View {
         ZStack {
-            background
+            immersiveBackground
             VStack(spacing: 0) {
-                header
+                voiceHeader
                 Spacer()
-                currentView
+                centerContent
                 Spacer()
+                bottomArea
                 Color.clear.frame(height: 110)
             }
-            .padding(.horizontal, 22)
-            if showSuccess { successOverlay }
+            .padding(.horizontal, 24)
         }
         .onChange(of: speech.isListening) { _, isNow in
             if !isNow && flowState == .listening { finishListening() }
@@ -39,240 +42,390 @@ struct VoiceView: View {
             }
             Button("Cancelar", role: .cancel) {}
         } message: {
-            Text("Tinka necesita acceso al micrófono y reconocimiento de voz. Ve a Ajustes > Privacidad > Micrófono para activarlos.")
+            Text("Tinka necesita acceso al micrófono para registrar ventas por voz.")
         }
     }
 
-    // MARK: - Sub-views
-    @ViewBuilder private var currentView: some View {
-        switch flowState {
-        case .idle:       idleView
-        case .listening:  listeningView
-        case .processing: processingView
-        case .result:     resultView
-        }
-    }
-
-    private var background: some View {
+    // MARK: - Background
+    private var immersiveBackground: some View {
         ZStack {
-            LinearGradient.tinkaSoftBackground.ignoresSafeArea()
-            Circle().fill(TinkaColor.magenta.opacity(0.18)).frame(width: 350).blur(radius: 100).offset(y: -200)
-            Circle().fill(TinkaColor.deepBlue.opacity(0.14)).frame(width: 300).blur(radius: 80).offset(x: -100, y: 200)
+            Color(hex: "0A0F1E").ignoresSafeArea()
+            switch flowState {
+            case .listening:
+                RadialGradient(colors: [TinkaColor.magenta.opacity(0.35), Color.clear],
+                               center: .center, startRadius: 60, endRadius: 320).ignoresSafeArea()
+                    .animation(.easeInOut(duration: 1.2), value: flowState)
+            case .confirmed:
+                RadialGradient(colors: [TinkaColor.deepBlue.opacity(0.4), Color.clear],
+                               center: .center, startRadius: 60, endRadius: 320).ignoresSafeArea()
+            case .success:
+                RadialGradient(colors: [TinkaColor.green.opacity(0.45), Color.clear],
+                               center: .center, startRadius: 80, endRadius: 350).ignoresSafeArea()
+                    .animation(.easeIn(duration: 0.4), value: flowState)
+            default:
+                RadialGradient(colors: [TinkaColor.royalPurple.opacity(0.3), Color.clear],
+                               center: .center, startRadius: 60, endRadius: 300).ignoresSafeArea()
+            }
         }
     }
 
-    private var header: some View {
-        VStack(spacing: 4) {
-            Text("Registro por Voz").font(.tinka(26, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
-            Text("Habla y Tinka entiende").font(.tinka(14)).foregroundColor(TinkaColor.subtleText)
+    // MARK: - Header
+    private var voiceHeader: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Registro por Voz")
+                    .font(.tinka(22, weight: .bold)).foregroundColor(.white)
+                Text(headerSubtitle)
+                    .font(.tinka(13)).foregroundColor(.white.opacity(0.55))
+                    .animation(.easeInOut(duration: 0.3), value: flowState)
+            }
+            Spacer()
+            statusPill
         }
         .padding(.top, 16)
     }
 
-    // MARK: - Idle
-    private var idleView: some View {
-        VStack(spacing: 28) {
-            micButton
+    private var headerSubtitle: String {
+        switch flowState {
+        case .idle:       return "Di lo que vendiste"
+        case .listening:  return "Escuchando…"
+        case .processing: return "Analizando tu voz…"
+        case .confirmed:  return "Tinka detectó esto"
+        case .success:    return "¡Venta guardada!"
+        }
+    }
+
+    private var statusPill: some View {
+        let (label, color): (String, Color) = {
+            switch flowState {
+            case .idle:       return ("Listo", TinkaColor.subtleText)
+            case .listening:  return ("● Escuchando", TinkaColor.magenta)
+            case .processing: return ("Procesando", TinkaColor.yellow)
+            case .confirmed:  return ("Detectado", TinkaColor.deepBlue)
+            case .success:    return ("✓ Guardado", TinkaColor.green)
+            }
+        }()
+        return Text(label)
+            .font(.tinka(12, weight: .bold))
+            .foregroundColor(color)
+            .padding(.horizontal, 12).padding(.vertical, 6)
+            .background(color.opacity(0.15))
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(color.opacity(0.4)))
+            .animation(.easeInOut(duration: 0.3), value: flowState)
+    }
+
+    // MARK: - Center content
+    @ViewBuilder
+    private var centerContent: some View {
+        switch flowState {
+        case .idle:       idleCenter
+        case .listening:  listeningCenter
+        case .processing: processingCenter
+        case .confirmed:  confirmationCard
+        case .success:    successCenter
+        }
+    }
+
+    // MARK: - IDLE
+    private var idleCenter: some View {
+        VStack(spacing: 32) {
+            pulseMicButton(isListening: false)
             VStack(spacing: 8) {
-                Text("Toca el micrófono").font(.tinka(18, weight: .semibold)).foregroundColor(TinkaColor.darkNavy)
-                Text("Di algo como:\n\"Vendí tres salteñas y dos refrescos\"")
-                    .font(.tinka(14)).foregroundColor(TinkaColor.subtleText).multilineTextAlignment(.center)
+                Text("Toca para hablar").font(.tinka(20, weight: .bold)).foregroundColor(.white)
+                Text("Tinka entiende tu catálogo actual").font(.tinka(14)).foregroundColor(.white.opacity(0.5))
             }
-            exampleChips
         }
+        .transition(.opacity.combined(with: .scale(scale: 0.95)))
     }
 
-    // MARK: - Listening
-    private var listeningView: some View {
+    // MARK: - LISTENING
+    private var listeningCenter: some View {
         VStack(spacing: 28) {
-            ZStack {
-                ForEach(0..<3, id: \.self) { i in
-                    Circle()
-                        .stroke(TinkaColor.magenta.opacity(0.25 - Double(i) * 0.07), lineWidth: 2)
-                        .frame(width: 100 + CGFloat(i) * 40, height: 100 + CGFloat(i) * 40)
-                        .scaleEffect(pulseScale)
-                        .animation(.easeInOut(duration: 1.3).repeatForever(autoreverses: true).delay(Double(i) * 0.2), value: pulseScale)
-                }
-                micButton
-            }
-            .frame(width: 220, height: 220)
-            .onAppear { pulseScale = 1.12 }
-
-            VStack(spacing: 10) {
-                HStack(spacing: 8) {
-                    Circle().fill(TinkaColor.magenta).frame(width: 8, height: 8)
-                        .opacity(0.8).animation(.easeInOut(duration: 0.7).repeatForever(), value: pulseScale)
-                    Text("Escuchando...").font(.tinka(20, weight: .semibold)).foregroundColor(TinkaColor.darkNavy)
-                }
-                if !speech.transcript.isEmpty {
-                    Text(speech.transcript)
-                        .font(.tinka(15)).foregroundColor(TinkaColor.subtleText)
-                        .multilineTextAlignment(.center).padding(.horizontal, 16)
-                        .transition(.opacity)
-                        .animation(.easeIn(duration: 0.2), value: speech.transcript)
-                }
-            }
-            WaveformView()
-            Button {
-                speech.stopListening()
-            } label: {
-                Text("Detener").font(.tinka(15, weight: .semibold)).foregroundColor(TinkaColor.magenta)
-                    .padding(.horizontal, 28).padding(.vertical, 12)
-                    .background(TinkaColor.magenta.opacity(0.1)).clipShape(Capsule())
-                    .overlay(Capsule().stroke(TinkaColor.magenta.opacity(0.3)))
-            }
+            pulseMicButton(isListening: true)
+            liveTranscriptBox
+            LiveWaveformView()
         }
+        .transition(.opacity.combined(with: .scale(scale: 0.95)))
     }
 
-    // MARK: - Processing
-    private var processingView: some View {
+    // MARK: - PROCESSING
+    private var processingCenter: some View {
         VStack(spacing: 24) {
             ZStack {
-                Circle().fill(LinearGradient.tinkaPrimary.opacity(0.12)).frame(width: 120, height: 120)
-                Image(systemName: "sparkles").font(.system(size: 44)).foregroundColor(TinkaColor.magenta)
+                Circle().fill(TinkaColor.royalPurple.opacity(0.15)).frame(width: 110, height: 110)
+                Circle().stroke(LinearGradient.tinkaPrimary, lineWidth: 3).frame(width: 110, height: 110)
+                    .rotationEffect(.degrees(0))
+                Image(systemName: "sparkles")
+                    .font(.system(size: 44)).foregroundColor(TinkaColor.magenta)
                     .symbolEffect(.variableColor.iterative, options: .repeating)
             }
-            VStack(spacing: 8) {
-                Text("Analizando con IA...").font(.tinka(20, weight: .semibold)).foregroundColor(TinkaColor.darkNavy)
-                Text("Identificando productos y cantidades").font(.tinka(14)).foregroundColor(TinkaColor.subtleText)
+            VStack(spacing: 6) {
+                Text("Analizando tu voz…").font(.tinka(18, weight: .bold)).foregroundColor(.white)
+                Text("Identificando productos del catálogo")
+                    .font(.tinka(13)).foregroundColor(.white.opacity(0.55))
             }
-            ProgressView().tint(TinkaColor.magenta).scaleEffect(1.3)
+            ProgressView().tint(TinkaColor.magenta).scaleEffect(1.4)
         }
+        .transition(.opacity.combined(with: .scale(scale: 0.95)))
     }
 
-    // MARK: - Result
-    private var resultView: some View {
-        VStack(spacing: 18) {
-            transcriptCard
-            parsedCard
-            resultActions
+    // MARK: - CONFIRMED (result card)
+    private var confirmationCard: some View {
+        VStack(spacing: 16) {
+            transcriptQuote
+            detectedProductsCard
+            if parsedProducts.isEmpty { retryHint }
         }
+        .transition(.asymmetric(
+            insertion: .scale(scale: 0.92).combined(with: .opacity),
+            removal: .opacity)
+        )
     }
 
-    private var transcriptCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Image(systemName: "quote.bubble.fill").foregroundColor(TinkaColor.deepBlue)
-                Text("Escuché:").font(.tinka(13, weight: .semibold)).foregroundColor(TinkaColor.subtleText)
-            }
-            Text("\"\(speech.transcript)\"")
-                .font(.tinka(15, weight: .medium)).foregroundColor(TinkaColor.darkNavy).italic()
+    private var transcriptQuote: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "quote.bubble.fill")
+                .foregroundColor(TinkaColor.royalPurple.opacity(0.8))
+            Text(speech.transcript.isEmpty ? "—" : "\"\(speech.transcript)\"")
+                .font(.tinka(14)).foregroundColor(.white.opacity(0.75)).italic()
+                .lineLimit(2)
+            Spacer()
         }
-        .padding(16).frame(maxWidth: .infinity, alignment: .leading).glassCard(cornerRadius: 16)
+        .padding(14)
+        .background(Color.white.opacity(0.06))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.1)))
     }
 
-    private var parsedCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
+    private var detectedProductsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
                 Image(systemName: parsedProducts.isEmpty ? "xmark.circle.fill" : "checkmark.circle.fill")
                     .foregroundColor(parsedProducts.isEmpty ? TinkaColor.red : TinkaColor.green)
+                    .font(.system(size: 18))
                 Text(parsedProducts.isEmpty ? "No detecté productos" : "Tinka detectó:")
-                    .font(.tinka(14, weight: .semibold)).foregroundColor(TinkaColor.darkNavy)
-            }
-            if parsedProducts.isEmpty {
-                Text("Intenta decir: \"Vendí tres salteñas y dos refrescos\"")
-                    .font(.tinka(13)).foregroundColor(TinkaColor.subtleText)
-            } else {
-                ForEach(parsedProducts) { p in
-                    HStack {
-                        Text("• \(p.qty)x \(p.name)").font(.tinka(15)).foregroundColor(TinkaColor.darkNavy)
-                        Spacer()
-                        Text("Bs. \(p.subtotal, specifier: "%.0f")").font(.tinka(14, weight: .semibold)).foregroundColor(TinkaColor.deepBlue)
-                    }
-                }
-                Divider()
-                HStack {
-                    Text("Total").font(.tinka(16, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
-                    Spacer()
-                    Text("Bs. \(parsedTotal, specifier: "%.2f")").font(.tinka(22, weight: .bold)).foregroundColor(TinkaColor.magenta)
-                }
-            }
-        }
-        .padding(16).frame(maxWidth: .infinity, alignment: .leading).glassCard(cornerRadius: 16)
-    }
-
-    private var resultActions: some View {
-        VStack(spacing: 12) {
-            Button { confirmSale() } label: {
-                Label("Confirmar venta", systemImage: "checkmark.circle.fill")
                     .font(.tinka(16, weight: .bold)).foregroundColor(.white)
-                    .frame(maxWidth: .infinity).padding(16)
-                    .background(parsedProducts.isEmpty ? AnyShapeStyle(Color.gray.opacity(0.4)) : AnyShapeStyle(LinearGradient.tinkaPrimary))
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .shadow(color: parsedProducts.isEmpty ? .clear : TinkaColor.magenta.opacity(0.3), radius: 10, y: 5)
             }
-            .disabled(parsedProducts.isEmpty)
-            HStack(spacing: 12) {
-                Button { reset() } label: {
-                    Text("Cancelar").font(.tinka(15, weight: .medium)).foregroundColor(TinkaColor.subtleText)
-                        .frame(maxWidth: .infinity).padding(14)
-                        .background(Color.white.opacity(0.7)).clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(TinkaColor.cardStroke))
+            if !parsedProducts.isEmpty {
+                ForEach(parsedProducts) { p in
+                    HStack(spacing: 10) {
+                        Text("\(p.qty)×").font(.tinka(22, weight: .black)).foregroundColor(TinkaColor.magenta)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(p.name).font(.tinka(16, weight: .semibold)).foregroundColor(.white)
+                            Text("Bs. \(p.price, specifier: "%.0f") c/u")
+                                .font(.tinka(12)).foregroundColor(.white.opacity(0.5))
+                        }
+                        Spacer()
+                        Text("Bs. \(p.subtotal, specifier: "%.0f")")
+                            .font(.tinka(16, weight: .bold)).foregroundColor(TinkaColor.deepBlue)
+                    }
+                    .padding(12)
+                    .background(Color.white.opacity(0.07))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                Button { startListening() } label: {
-                    Text("Reintentar").font(.tinka(15, weight: .medium)).foregroundColor(TinkaColor.deepBlue)
-                        .frame(maxWidth: .infinity).padding(14)
-                        .background(TinkaColor.deepBlue.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(TinkaColor.deepBlue.opacity(0.3)))
+                Divider().background(Color.white.opacity(0.15))
+                HStack {
+                    Text("TOTAL").font(.tinka(12, weight: .black))
+                        .foregroundColor(.white.opacity(0.55))
+                        .tracking(1.2)
+                    Spacer()
+                    Text("Bs. \(parsedTotal, specifier: "%.2f")")
+                        .font(.tinka(26, weight: .black)).foregroundColor(TinkaColor.magenta)
                 }
             }
         }
+        .padding(18)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(
+            parsedProducts.isEmpty ? TinkaColor.red.opacity(0.4) : TinkaColor.green.opacity(0.4)
+        ))
     }
 
-    private var micButton: some View {
-        Button { handleMicTap() } label: {
+    private var retryHint: some View {
+        VStack(spacing: 6) {
+            Text("💡 Tip: Di algo como")
+                .font(.tinka(12)).foregroundColor(.white.opacity(0.45))
+            Text("\"Vendí dos salteñas y un refresco\"")
+                .font(.tinka(13, weight: .semibold)).foregroundColor(.white.opacity(0.65)).italic()
+        }
+    }
+
+    // MARK: - SUCCESS
+    private var successCenter: some View {
+        VStack(spacing: 20) {
             ZStack {
-                Circle().fill(LinearGradient.tinkaPrimary).frame(width: 90, height: 90)
-                    .shadow(color: TinkaColor.magenta.opacity(0.5), radius: 22, y: 10)
-                Image(systemName: flowState == .listening ? "stop.fill" : "mic.fill")
-                    .font(.system(size: 34, weight: .bold)).foregroundColor(.white)
+                Circle().fill(TinkaColor.green.opacity(0.2)).frame(width: 130, height: 130)
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 72)).foregroundColor(TinkaColor.green)
+            }
+            .scaleEffect(flowState == .success ? 1 : 0.5)
+            .animation(.spring(response: 0.5, dampingFraction: 0.6), value: flowState)
+            VStack(spacing: 6) {
+                Text("¡Venta registrada!").font(.tinka(24, weight: .black)).foregroundColor(.white)
+                Text("Bs. \(parsedTotal, specifier: "%.2f") añadidos a tu resumen")
+                    .font(.tinka(15)).foregroundColor(.white.opacity(0.65))
             }
         }
-        .scaleEffect(flowState == .listening ? 1.05 : 1.0)
-        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: flowState)
+        .transition(.asymmetric(
+            insertion: .scale(scale: 0.8).combined(with: .opacity),
+            removal: .opacity)
+        )
     }
 
-    private var exampleChips: some View {
-        VStack(spacing: 8) {
-            let examples = [
-                "Vendí tres salteñas y dos refrescos",
-                "Una porción de pique macho",
-                "Dos almuerzos del día",
-                "Cinco salteñas y una Coca Cola"
-            ]
+    // MARK: - Live Transcript Box
+    private var liveTranscriptBox: some View {
+        ZStack(alignment: .center) {
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.white.opacity(0.07))
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(0.12)))
+            if speech.transcript.isEmpty {
+                Text("Habla ahora…")
+                    .font(.tinka(16)).foregroundColor(.white.opacity(0.3)).italic()
+            } else {
+                Text(speech.transcript)
+                    .font(.tinka(17, weight: .medium)).foregroundColor(.white)
+                    .multilineTextAlignment(.center).padding(.horizontal, 16)
+                    .animation(.easeIn(duration: 0.15), value: speech.transcript)
+            }
+        }
+        .frame(minHeight: 72)
+        .padding(.horizontal, 4)
+    }
+
+    // MARK: - Bottom Area (buttons)
+    @ViewBuilder
+    private var bottomArea: some View {
+        switch flowState {
+        case .idle:
+            examplePhrases
+        case .listening:
+            stopButton
+        case .processing:
+            Color.clear.frame(height: 60)
+        case .confirmed:
+            confirmButtons
+        case .success:
+            newSaleButton
+        }
+    }
+
+    private var examplePhrases: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("EJEMPLOS DE VOZ")
+                .font(.tinka(11, weight: .bold))
+                .foregroundColor(.white.opacity(0.35))
+                .tracking(1.2)
+            let examples = buildExamples()
             ForEach(examples, id: \.self) { phrase in
                 Button { simulateVoice(phrase) } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "mic.circle.fill").foregroundColor(TinkaColor.magenta).font(.system(size: 16))
-                        Text(phrase).font(.tinka(13)).foregroundColor(TinkaColor.darkNavy)
+                    HStack(spacing: 10) {
+                        Image(systemName: "waveform").font(.system(size: 14)).foregroundColor(TinkaColor.magenta)
+                        Text(phrase).font(.tinka(13)).foregroundColor(.white.opacity(0.8))
                         Spacer()
-                        Image(systemName: "chevron.right").font(.system(size: 11, weight: .medium)).foregroundColor(TinkaColor.subtleText)
+                        Image(systemName: "play.fill").font(.system(size: 10)).foregroundColor(.white.opacity(0.3))
                     }
-                    .padding(13).background(Color.white.opacity(0.75))
-                    .clipShape(RoundedRectangle(cornerRadius: 13))
-                    .overlay(RoundedRectangle(cornerRadius: 13).stroke(TinkaColor.cardStroke))
+                    .padding(12)
+                    .background(Color.white.opacity(0.06))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.1)))
                 }
             }
         }
     }
 
-    private var successOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.45).ignoresSafeArea()
-            VStack(spacing: 16) {
-                Image(systemName: "checkmark.circle.fill").font(.system(size: 64)).foregroundColor(TinkaColor.green)
-                Text("¡Venta registrada!").font(.tinka(24, weight: .bold)).foregroundColor(.white)
-                Text("Bs. \(parsedTotal, specifier: "%.2f") añadidos a tu resumen")
-                    .font(.tinka(15)).foregroundColor(.white.opacity(0.85))
-            }
-            .padding(36).background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 28))
-            .shadow(color: .black.opacity(0.2), radius: 30, y: 10)
+    private func buildExamples() -> [String] {
+        let active = state.catalogProducts.filter { $0.isActive }.prefix(3)
+        if active.isEmpty {
+            return ["Vendí tres salteñas y dos refrescos", "Una porción de almuerzo", "Dos Coca Colas"]
         }
-        .transition(.opacity)
+        var list: [String] = []
+        let names = active.map { $0.name }
+        if names.count >= 2 { list.append("Vendí dos \(names[0].lowercased())s y un \(names[1].lowercased())") }
+        if names.count >= 1 { list.append("Una porción de \(names[0].lowercased())") }
+        if names.count >= 3 { list.append("Tres \(names[2].lowercased())s") }
+        return list
+    }
+
+    private var stopButton: some View {
+        Button { speech.stopListening() } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "stop.fill").font(.system(size: 16))
+                Text("Detener y analizar").font(.tinka(16, weight: .bold))
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity).padding(18)
+            .background(TinkaColor.magenta.opacity(0.85))
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(TinkaColor.magenta.opacity(0.5)))
+        }
+    }
+
+    private var confirmButtons: some View {
+        VStack(spacing: 12) {
+            Button { confirmSale() } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill").font(.system(size: 18))
+                    Text("Confirmar venta").font(.tinka(17, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity).padding(18)
+                .background(parsedProducts.isEmpty
+                    ? AnyShapeStyle(Color.gray.opacity(0.3))
+                    : AnyShapeStyle(LinearGradient.tinkaPrimary))
+                .clipShape(RoundedRectangle(cornerRadius: 18))
+                .shadow(color: parsedProducts.isEmpty ? .clear : TinkaColor.magenta.opacity(0.4), radius: 14, y: 6)
+            }
+            .disabled(parsedProducts.isEmpty)
+
+            HStack(spacing: 12) {
+                Button { reset() } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "xmark").font(.system(size: 13))
+                        Text("Cancelar").font(.tinka(15, weight: .medium))
+                    }
+                    .foregroundColor(.white.opacity(0.65))
+                    .frame(maxWidth: .infinity).padding(16)
+                    .background(Color.white.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.12)))
+                }
+                Button { startListening() } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "mic.fill").font(.system(size: 13))
+                        Text("Reintentar").font(.tinka(15, weight: .medium))
+                    }
+                    .foregroundColor(TinkaColor.magenta)
+                    .frame(maxWidth: .infinity).padding(16)
+                    .background(TinkaColor.magenta.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(TinkaColor.magenta.opacity(0.35)))
+                }
+            }
+        }
+    }
+
+    private var newSaleButton: some View {
+        Button { reset() } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "mic.fill").font(.system(size: 16))
+                Text("Nueva venta").font(.tinka(16, weight: .bold))
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity).padding(18)
+            .background(Color.white.opacity(0.15))
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(0.25)))
+        }
+    }
+
+    // MARK: - Mic Button
+    private func pulseMicButton(isListening: Bool) -> some View {
+        PulsingMicButton(isListening: isListening) { handleMicTap() }
     }
 
     // MARK: - Logic
-
     private func handleMicTap() {
         if flowState == .idle { startListening() }
         else if flowState == .listening { speech.stopListening() }
@@ -283,24 +436,27 @@ struct VoiceView: View {
         Task {
             let granted = await speech.requestPermissions()
             guard granted else { return }
-            flowState = .listening
+            await MainActor.run { flowState = .listening }
             speech.startListening()
         }
     }
 
     private func finishListening() {
         guard flowState == .listening else { return }
-        flowState = .processing
+        withAnimation { flowState = .processing }
         let captured = speech.transcript
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            parsedProducts = VoiceParser.parse(captured)
-            withAnimation { flowState = .result }
+            let result = VoiceParser.parse(captured)
+            withAnimation(.spring(response: 0.45)) {
+                parsedProducts = result
+                flowState = .confirmed
+            }
         }
     }
 
     private func simulateVoice(_ phrase: String) {
         reset()
-        flowState = .listening
+        withAnimation { flowState = .listening }
         speech.transcript = ""
         var built = ""
         let chars = Array(phrase)
@@ -309,9 +465,7 @@ struct VoiceView: View {
                 built.append(ch)
                 speech.transcript = built
                 if built.count == chars.count {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        finishListening()
-                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { finishListening() }
                 }
             }
         }
@@ -319,11 +473,12 @@ struct VoiceView: View {
 
     private func confirmSale() {
         guard !parsedProducts.isEmpty else { return }
-        state.addSale(SaleItem(date: Date(), products: parsedProducts, total: parsedTotal, channel: .voice))
-        withAnimation { showSuccess = true }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
-            withAnimation { showSuccess = false }
-            reset()
+        let saleTotal = parsedTotal
+        let saleProducts = parsedProducts
+        state.addSale(SaleItem(date: Date(), products: saleProducts, total: saleTotal, channel: .voice))
+        withAnimation(.spring(response: 0.5)) { flowState = .success }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            withAnimation { reset() }
         }
     }
 
@@ -331,14 +486,81 @@ struct VoiceView: View {
         flowState = .idle
         speech.transcript = ""
         parsedProducts = []
-        pulseScale = 1.0
+    }
+}
+
+// MARK: - Pulsing Mic Button
+struct PulsingMicButton: View {
+    let isListening: Bool
+    let action: () -> Void
+    @State private var pulse: CGFloat = 1.0
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                if isListening {
+                    ForEach(0..<3, id: \.self) { i in
+                        Circle()
+                            .stroke(TinkaColor.magenta.opacity(0.25 - Double(i) * 0.07), lineWidth: 1.5)
+                            .frame(width: 100 + CGFloat(i) * 34, height: 100 + CGFloat(i) * 34)
+                            .scaleEffect(pulse)
+                            .animation(
+                                .easeInOut(duration: 1.1)
+                                    .repeatForever(autoreverses: true)
+                                    .delay(Double(i) * 0.22),
+                                value: pulse
+                            )
+                    }
+                }
+                Circle()
+                    .fill(isListening
+                        ? AnyShapeStyle(TinkaColor.magenta)
+                        : AnyShapeStyle(LinearGradient.tinkaPrimary))
+                    .frame(width: 96, height: 96)
+                    .shadow(color: (isListening ? TinkaColor.magenta : TinkaColor.royalPurple).opacity(0.6),
+                            radius: 26, y: 10)
+                Image(systemName: isListening ? "stop.fill" : "mic.fill")
+                    .font(.system(size: 38, weight: .bold)).foregroundColor(.white)
+            }
+        }
+        .frame(width: 180, height: 180)
+        .onAppear { if isListening { pulse = 1.14 } }
+        .onChange(of: isListening) { _, v in pulse = v ? 1.14 : 1.0 }
+    }
+}
+
+// MARK: - Live Waveform
+struct LiveWaveformView: View {
+    @State private var heights: [CGFloat] = Array(repeating: 4, count: 24)
+    @State private var timer: Timer? = nil
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<heights.count, id: \.self) { i in
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(LinearGradient.tinkaPrimary.opacity(0.85))
+                    .frame(width: 5, height: heights[i])
+                    .animation(.easeInOut(duration: 0.18), value: heights[i])
+            }
+        }
+        .frame(height: 52)
+        .onAppear { startAnimating() }
+        .onDisappear { timer?.invalidate() }
+    }
+
+    private func startAnimating() {
+        timer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { _ in
+            for i in 0..<heights.count {
+                heights[i] = CGFloat.random(in: 4...48)
+            }
+        }
     }
 }
 
 // MARK: - Voice Parser (Dynamic Catalog)
 enum VoiceParser {
     private static let numberWords: [(String, Int)] = [
-        ("cero", 0), ("media", 1), ("un ", 1), ("una ", 1), ("uno", 1),
+        ("media ", 1), ("un ", 1), ("una ", 1), ("uno", 1),
         ("dos", 2), ("tres", 3), ("cuatro", 4), ("cinco", 5),
         ("seis", 6), ("siete", 7), ("ocho", 8), ("nueve", 9),
         ("diez", 10), ("once", 11), ("doce", 12), ("trece", 13),
@@ -346,50 +568,58 @@ enum VoiceParser {
     ]
 
     static func parse(_ text: String) -> [SaleProduct] {
-        let t = text.lowercased()
+        let t = text.lowercased().trimmingCharacters(in: .whitespaces)
         guard !t.isEmpty else { return [] }
 
-        // Build product map from dynamic catalog
         let catalog = AppState.shared.catalogProducts.filter { $0.isActive }
-        let combos = AppState.shared.combos.filter { $0.isActive }
+        let combos  = AppState.shared.combos.filter { $0.isActive }
 
-        // Include combos as virtual products
-        var allMatchable: [(keywords: [String], name: String, price: Double)] = []
-        for product in catalog {
-            let keywords = generateKeywords(for: product.name)
-            allMatchable.append((keywords: keywords, name: product.name, price: product.price))
-        }
-        for combo in combos {
-            let keywords = generateKeywords(for: combo.name)
-            allMatchable.append((keywords: keywords, name: combo.name, price: combo.finalPrice))
-        }
+        var matchable: [(kws: [String], name: String, price: Double)] = []
+        for p in catalog { matchable.append((kws: keywords(p.name), name: p.name, price: p.price)) }
+        for c in combos  { matchable.append((kws: keywords(c.name), name: c.name, price: c.finalPrice)) }
 
-        let segments = t.components(separatedBy: " y ")
+        // Split on connectors
+        let segments = t.components(separatedBy: .init(charactersIn: ","))
+            .flatMap { $0.components(separatedBy: " y ") }
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+
         var results: [SaleProduct] = []
+        var usedNames = Set<String>()
 
-        for segment in segments {
-            for mapping in allMatchable {
-                let found = mapping.keywords.contains { segment.contains($0) }
-                guard found, !results.contains(where: { $0.name == mapping.name }) else { continue }
-                let qty = detectNumber(in: segment) ?? detectNumber(in: t) ?? 1
-                results.append(SaleProduct(name: mapping.name, qty: qty, price: mapping.price))
-                break
+        for seg in segments where !seg.isEmpty {
+            for m in matchable where !usedNames.contains(m.name) {
+                if m.kws.contains(where: { seg.contains($0) }) {
+                    let qty = detectNumber(in: seg) ?? detectNumber(in: t) ?? 1
+                    results.append(SaleProduct(name: m.name, qty: qty, price: m.price))
+                    usedNames.insert(m.name)
+                    break
+                }
             }
         }
+
+        // Fallback: scan full text if segments found nothing
+        if results.isEmpty {
+            for m in matchable {
+                if m.kws.contains(where: { t.contains($0) }) {
+                    let qty = detectNumber(in: t) ?? 1
+                    results.append(SaleProduct(name: m.name, qty: qty, price: m.price))
+                    break
+                }
+            }
+        }
+
         return results
     }
 
-    private static func generateKeywords(for name: String) -> [String] {
+    private static func keywords(_ name: String) -> [String] {
         let base = name.lowercased()
         var kw = [base]
-        // Pluralize simple Spanish rules
-        if base.hasSuffix("a") { kw.append(base + "s") }
-        else if base.hasSuffix("o") { kw.append(base.dropLast() + "os") }
+        if base.hasSuffix("a")  { kw.append(base + "s") }
+        else if base.hasSuffix("o") { kw.append(String(base.dropLast()) + "os") }
         else if base.hasSuffix("e") { kw.append(base + "s") }
         else { kw.append(base + "s") }
-        // Add first word if multi-word
         let parts = base.components(separatedBy: " ")
-        if parts.count > 1 { kw.append(parts[0]) }
+        if parts.count > 1 { kw.append(contentsOf: [parts[0], parts[0] + "s"]) }
         return kw
     }
 
@@ -398,36 +628,6 @@ enum VoiceParser {
         for w in words { if let n = Int(w), n > 0 { return n } }
         for (word, value) in numberWords { if text.contains(word) { return value } }
         return nil
-    }
-}
-
-// MARK: - Waveform
-struct WaveformView: View {
-    @State private var phase: CGFloat = 0
-    private let bars = 22
-
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<bars, id: \.self) { i in
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(LinearGradient.tinkaPrimary)
-                    .frame(width: 5, height: height(for: i))
-                    .animation(
-                        .easeInOut(duration: 0.4 + Double(i % 4) * 0.05)
-                            .repeatForever(autoreverses: true)
-                            .delay(Double(i) * 0.04),
-                        value: phase
-                    )
-            }
-        }
-        .frame(height: 60)
-        .onAppear { phase = 1 }
-    }
-
-    private func height(for i: Int) -> CGFloat {
-        guard phase > 0 else { return 4 }
-        let base = sin(Double(i) * 0.55 + Double(phase) * 2.2) * 0.5 + 0.5
-        return CGFloat(base) * 46 + 8
     }
 }
 
