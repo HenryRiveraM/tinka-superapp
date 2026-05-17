@@ -335,7 +335,7 @@ struct VoiceView: View {
     }
 }
 
-// MARK: - Voice Parser
+// MARK: - Voice Parser (Dynamic Catalog)
 enum VoiceParser {
     private static let numberWords: [(String, Int)] = [
         ("cero", 0), ("media", 1), ("un ", 1), ("una ", 1), ("uno", 1),
@@ -345,40 +345,57 @@ enum VoiceParser {
         ("catorce", 14), ("quince", 15), ("veinte", 20)
     ]
 
-    private static let productMap: [(keywords: [String], name: String)] = [
-        (["salteña", "salteñas", "salteña"], "Salteña"),
-        (["refresco", "refrescos", "bebida", "bebidas", "gaseosa"], "Refresco"),
-        (["almuerzo", "almuerzos", "almuerzo del día", "plato"], "Almuerzo"),
-        (["pique macho", "pique", "piqueño"], "Pique Macho"),
-        (["coca cola", "coca-cola", "coca", "cola"], "Coca Cola")
-    ]
-
     static func parse(_ text: String) -> [SaleProduct] {
         let t = text.lowercased()
         guard !t.isEmpty else { return [] }
 
-        // Split on "y" connectors to handle "3 salteñas y 2 refrescos"
+        // Build product map from dynamic catalog
+        let catalog = AppState.shared.catalogProducts.filter { $0.isActive }
+        let combos = AppState.shared.combos.filter { $0.isActive }
+
+        // Include combos as virtual products
+        var allMatchable: [(keywords: [String], name: String, price: Double)] = []
+        for product in catalog {
+            let keywords = generateKeywords(for: product.name)
+            allMatchable.append((keywords: keywords, name: product.name, price: product.price))
+        }
+        for combo in combos {
+            let keywords = generateKeywords(for: combo.name)
+            allMatchable.append((keywords: keywords, name: combo.name, price: combo.finalPrice))
+        }
+
         let segments = t.components(separatedBy: " y ")
         var results: [SaleProduct] = []
 
         for segment in segments {
-            for mapping in productMap {
+            for mapping in allMatchable {
                 let found = mapping.keywords.contains { segment.contains($0) }
                 guard found, !results.contains(where: { $0.name == mapping.name }) else { continue }
                 let qty = detectNumber(in: segment) ?? detectNumber(in: t) ?? 1
-                let price = ProductCatalog.prices[mapping.name] ?? 5
-                results.append(SaleProduct(name: mapping.name, qty: qty, price: price))
+                results.append(SaleProduct(name: mapping.name, qty: qty, price: mapping.price))
                 break
             }
         }
         return results
     }
 
-    private static func detectNumber(in text: String) -> Int? {
-        // Check for digit words first
+    private static func generateKeywords(for name: String) -> [String] {
+        let base = name.lowercased()
+        var kw = [base]
+        // Pluralize simple Spanish rules
+        if base.hasSuffix("a") { kw.append(base + "s") }
+        else if base.hasSuffix("o") { kw.append(base.dropLast() + "os") }
+        else if base.hasSuffix("e") { kw.append(base + "s") }
+        else { kw.append(base + "s") }
+        // Add first word if multi-word
+        let parts = base.components(separatedBy: " ")
+        if parts.count > 1 { kw.append(parts[0]) }
+        return kw
+    }
+
+    static func detectNumber(in text: String) -> Int? {
         let words = text.components(separatedBy: .whitespaces)
         for w in words { if let n = Int(w), n > 0 { return n } }
-        // Then word-based numbers
         for (word, value) in numberWords { if text.contains(word) { return value } }
         return nil
     }

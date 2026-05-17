@@ -8,28 +8,40 @@ struct TinkaChatView: View {
     @EnvironmentObject var state: AppState
     @State private var inputText = ""
     @State private var isTyping = false
+    @State private var showApiKeySetup = false
+    @State private var apiKeyInput = ""
+    @State private var aiError: String? = nil
     @FocusState private var inputFocused: Bool
 
     private let prompts: [SuggestedPrompt] = [
-        .init(icon: "chart.bar.fill",          text: "¿Cómo va mi negocio?"),
-        .init(icon: "star.fill",               text: "¿Cuál es mi producto estrella?"),
-        .init(icon: "arrow.up.circle.fill",    text: "¿Cómo puedo mejorar mi score?"),
-        .init(icon: "calendar.badge.clock",    text: "Dame un resumen de hoy"),
-        .init(icon: "creditcard.fill",         text: "¿Puedo acceder a un microcrédito?"),
-        .init(icon: "lightbulb.fill",          text: "¿Qué puedo mejorar en mi negocio?")
+        .init(icon: "chart.bar.fill",       text: "¿Cómo va mi negocio?"),
+        .init(icon: "star.fill",            text: "¿Cuál es mi producto estrella?"),
+        .init(icon: "tag.fill",             text: "¿Qué combo debería crear?"),
+        .init(icon: "calendar.badge.clock", text: "Dame un resumen de hoy"),
+        .init(icon: "arrow.up.circle.fill", text: "¿Qué puedo mejorar?"),
+        .init(icon: "lightbulb.fill",       text: "¿Estoy vendiendo bien esta semana?")
     ]
+
+    private var hasApiKey: Bool {
+        let k = UserDefaults.standard.string(forKey: "tinka_gemini_key") ?? ""
+        return !k.isEmpty
+    }
 
     var body: some View {
         ZStack {
             background
             VStack(spacing: 0) {
                 chatHeader
+                if !hasApiKey {
+                    apiKeyBanner
+                }
                 ScrollViewReader { proxy in
                     ScrollView(showsIndicators: false) {
                         LazyVStack(spacing: 12) {
                             if state.chatMessages.isEmpty { emptyState }
                             ForEach(state.chatMessages) { msg in ChatBubble(message: msg).id(msg.id) }
                             if isTyping { typingIndicator.id("typing") }
+                            if let err = aiError { errorBubble(err).id("error") }
                             Color.clear.frame(height: 8).id("bottom")
                         }
                         .padding(.horizontal, 16).padding(.top, 12)
@@ -46,12 +58,15 @@ struct TinkaChatView: View {
                 Color.clear.frame(height: 90)
             }
         }
+        .sheet(isPresented: $showApiKeySetup) { apiKeySheet }
     }
+
+    // MARK: - Views
 
     private var background: some View {
         ZStack {
             LinearGradient.tinkaSoftBackground.ignoresSafeArea()
-            Circle().fill(TinkaColor.royalPurple.opacity(0.13)).frame(width: 300).blur(radius: 80).offset(x: 150, y: -200)
+            Circle().fill(TinkaColor.royalPurple.opacity(0.12)).frame(width: 300).blur(radius: 80).offset(x: 150, y: -200)
         }
     }
 
@@ -64,19 +79,43 @@ struct TinkaChatView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Tinka IA").font(.tinka(18, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
                 HStack(spacing: 4) {
-                    Circle().fill(TinkaColor.green).frame(width: 7, height: 7)
-                    Text("Tu copiloto financiero").font(.tinka(12)).foregroundColor(TinkaColor.subtleText)
+                    Circle().fill(hasApiKey ? TinkaColor.green : TinkaColor.yellow).frame(width: 7, height: 7)
+                    Text(hasApiKey ? "Gemini · En línea" : "Modo local")
+                        .font(.tinka(12)).foregroundColor(TinkaColor.subtleText)
                 }
             }
             Spacer()
-            if !state.chatMessages.isEmpty {
-                Button { withAnimation { state.chatMessages.removeAll() } } label: {
-                    Image(systemName: "trash").font(.system(size: 14)).foregroundColor(TinkaColor.subtleText)
+            HStack(spacing: 8) {
+                Button { showApiKeySetup = true } label: {
+                    Image(systemName: "key.fill")
+                        .font(.system(size: 13)).foregroundColor(TinkaColor.subtleText)
                         .padding(8).background(Color.white.opacity(0.7)).clipShape(Circle())
+                }
+                if !state.chatMessages.isEmpty {
+                    Button { withAnimation { state.chatMessages.removeAll(); aiError = nil } } label: {
+                        Image(systemName: "trash").font(.system(size: 13)).foregroundColor(TinkaColor.subtleText)
+                            .padding(8).background(Color.white.opacity(0.7)).clipShape(Circle())
+                    }
                 }
             }
         }
         .padding(.horizontal, 18).padding(.vertical, 12).background(.ultraThinMaterial)
+    }
+
+    private var apiKeyBanner: some View {
+        Button { showApiKeySetup = true } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "sparkles").foregroundStyle(LinearGradient.tinkaPrimary).font(.system(size: 16))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Activa IA real con Gemini").font(.tinka(13, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
+                    Text("Toca aquí para configurar tu API key gratuita").font(.tinka(11)).foregroundColor(TinkaColor.subtleText)
+                }
+                Spacer()
+                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(TinkaColor.subtleText)
+            }
+            .padding(.horizontal, 18).padding(.vertical, 10)
+            .background(TinkaColor.yellow.opacity(0.12))
+        }
     }
 
     private var emptyState: some View {
@@ -86,8 +125,11 @@ struct TinkaChatView: View {
                 Image(systemName: "sparkles").font(.system(size: 40)).foregroundColor(TinkaColor.magenta)
             }
             Text("¡Hola, Doña María!").font(.tinka(22, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
-            Text("Soy Tinka, tu copiloto financiero.\nPregúntame lo que necesites sobre tu negocio.")
-                .font(.tinka(14)).foregroundColor(TinkaColor.subtleText).multilineTextAlignment(.center)
+            Text(hasApiKey
+                ? "Soy Tinka IA con Gemini.\nPregúntame lo que necesites sobre tu negocio."
+                : "Soy Tinka, tu copiloto financiero.\nPregúntame lo que necesites sobre tu negocio."
+            )
+            .font(.tinka(14)).foregroundColor(TinkaColor.subtleText).multilineTextAlignment(.center)
         }
         .padding(.top, 40)
     }
@@ -147,17 +189,135 @@ struct TinkaChatView: View {
         }
     }
 
+    @ViewBuilder
+    private func errorBubble(_ msg: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundColor(TinkaColor.yellow)
+            Text(msg).font(.tinka(13)).foregroundColor(TinkaColor.darkNavy)
+            Spacer()
+            Button { aiError = nil } label: {
+                Image(systemName: "xmark").font(.system(size: 12, weight: .bold))
+                    .foregroundColor(TinkaColor.subtleText)
+            }
+        }
+        .padding(12)
+        .background(TinkaColor.yellow.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(TinkaColor.yellow.opacity(0.3)))
+        .transition(.opacity)
+    }
+
+    // MARK: - API Key Sheet
+
+    private var apiKeySheet: some View {
+        NavigationView {
+            ZStack {
+                LinearGradient.tinkaSoftBackground.ignoresSafeArea()
+                VStack(spacing: 24) {
+                    VStack(spacing: 12) {
+                        ZStack {
+                            Circle().fill(LinearGradient.tinkaPrimary.opacity(0.12)).frame(width: 80, height: 80)
+                            Image(systemName: "sparkles").font(.system(size: 34)).foregroundColor(TinkaColor.magenta)
+                        }
+                        Text("Activa Gemini IA").font(.tinka(22, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
+                        Text("Obtén tu API key gratuita en ai.google.dev y pégala aquí para activar la IA real en tu negocio.")
+                            .font(.tinka(14)).foregroundColor(TinkaColor.subtleText).multilineTextAlignment(.center)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Gemini API Key").font(.tinka(13, weight: .semibold)).foregroundColor(TinkaColor.subtleText)
+                        SecureField("AIza...", text: $apiKeyInput)
+                            .font(.system(size: 14, weight: .regular, design: .monospaced)).foregroundColor(TinkaColor.darkNavy)
+                            .padding(14)
+                            .background(Color.white.opacity(0.9))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(TinkaColor.cardStroke))
+                    }
+
+                    Button {
+                        let trimmed = apiKeyInput.trimmingCharacters(in: .whitespaces)
+                        if !trimmed.isEmpty {
+                            UserDefaults.standard.set(trimmed, forKey: "tinka_gemini_key")
+                            Task { await GeminiService.shared.setApiKey(trimmed) }
+                            showApiKeySetup = false
+                            apiKeyInput = ""
+                        }
+                    } label: {
+                        Text("Activar Gemini IA")
+                            .font(.tinka(16, weight: .bold)).foregroundColor(.white)
+                            .frame(maxWidth: .infinity).padding(16)
+                            .background(apiKeyInput.count > 10 ? AnyShapeStyle(LinearGradient.tinkaPrimary) : AnyShapeStyle(Color.gray.opacity(0.4)))
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                    }
+                    .disabled(apiKeyInput.count <= 10)
+
+                    if hasApiKey {
+                        Button {
+                            UserDefaults.standard.removeObject(forKey: "tinka_gemini_key")
+                            Task { await GeminiService.shared.setApiKey("") }
+                            showApiKeySetup = false
+                        } label: {
+                            Text("Eliminar API Key")
+                                .font(.tinka(14)).foregroundColor(TinkaColor.red)
+                        }
+                    }
+
+                    Spacer()
+                }
+                .padding(24)
+            }
+            .navigationTitle("Configuración IA")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cerrar") { showApiKeySetup = false }.foregroundColor(TinkaColor.subtleText)
+                }
+            }
+        }
+        .onAppear {
+            apiKeyInput = UserDefaults.standard.string(forKey: "tinka_gemini_key") ?? ""
+        }
+    }
+
+    // MARK: - Logic
+
     private func sendMessage(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty, !isTyping else { return }
         inputText = ""
         inputFocused = false
+        aiError = nil
         withAnimation { state.chatMessages.append(ChatMessage(text: trimmed, isUser: true)) }
         isTyping = true
-        let delay = Double.random(in: 1.2...2.0)
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            let reply = TinkaAI.reply(for: trimmed, state: state)
-            withAnimation { isTyping = false; state.chatMessages.append(ChatMessage(text: reply, isUser: false)) }
+
+        let context = state.businessContextForAI
+        let storedKey = UserDefaults.standard.string(forKey: "tinka_gemini_key") ?? ""
+
+        if storedKey.isEmpty {
+            // Fallback to local AI
+            let delay = Double.random(in: 1.0...1.8)
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                let reply = TinkaAIFallback.reply(for: trimmed, state: state)
+                withAnimation { isTyping = false; state.chatMessages.append(ChatMessage(text: reply, isUser: false)) }
+            }
+        } else {
+            Task {
+                await GeminiService.shared.setApiKey(storedKey)
+                do {
+                    let reply = try await GeminiService.shared.chat(userMessage: trimmed, businessContext: context)
+                    await MainActor.run {
+                        withAnimation { isTyping = false; state.chatMessages.append(ChatMessage(text: reply, isUser: false)) }
+                    }
+                } catch {
+                    await MainActor.run {
+                        isTyping = false
+                        aiError = error.localizedDescription
+                        // Fallback if Gemini fails
+                        let fallback = TinkaAIFallback.reply(for: trimmed, state: state)
+                        withAnimation { state.chatMessages.append(ChatMessage(text: fallback, isUser: false)) }
+                    }
+                }
+            }
         }
     }
 }
@@ -207,8 +367,8 @@ struct ChatBubble: View {
     }
 }
 
-// MARK: - Tinka AI Engine
-enum TinkaAI {
+// MARK: - Local Fallback AI (when no API key)
+enum TinkaAIFallback {
     static func reply(for question: String, state: AppState) -> String {
         let q = question.lowercased()
         let score = state.tinkaScore
@@ -221,52 +381,34 @@ enum TinkaAI {
         let ticket = Int(state.averageTicket)
         let utility = Int(state.utilityEstimate)
 
-        // Resumen de hoy
         if q.contains("hoy") || q.contains("día") || q.contains("resumen") {
             if today == 0 {
-                return "📅 Aún no has registrado ventas hoy, Doña María. ¡Empieza ahora con el botón Voz 🎤 o la venta rápida! Cada venta suma a tu score."
+                return "📅 Aún no has registrado ventas hoy, Doña María. ¡Empieza ahora con el micrófono 🎤 o la venta rápida!"
             }
-            return "📅 Hoy llevas **Bs. \(Int(today))** en \(todayCount) venta(s). Tu utilidad estimada es **Bs. \(Int(today * 0.35))**. Estado financiero: **\(status)**. \(today >= 300 ? "¡Excelente día! 🌟" : today >= 100 ? "Buen ritmo, sigue vendiendo 💪" : "Tienes potencial para más, ¡ánimo! 🚀")"
+            return "📅 Hoy llevas **Bs. \(Int(today))** en \(todayCount) venta(s). Utilidad estimada: **Bs. \(Int(today * 0.35))**. Estado: **\(status)**. \(today >= 300 ? "¡Excelente día! 🌟" : "¡Sigue adelante! 💪")"
         }
-
-        // Negocio / cómo va
         if q.contains("negocio") || q.contains("cómo va") || q.contains("como va") {
-            return "📊 Tu negocio está **\(status)**, Doña María. Esta semana: **Bs. \(Int(week))** en \(weekCount) ventas. Utilidad estimada: **Bs. \(utility)**. Tu producto estrella es **\(topProd)**. Tinka Score: **\(score)/100**. \(score >= 75 ? "¡Vas excelente! 🏆" : "¡Sigue registrando para mejorar! 💪")"
+            return "📊 Tu negocio está **\(status)**. Esta semana: **Bs. \(Int(week))** en \(weekCount) ventas. Utilidad: **Bs. \(utility)**. Producto estrella: **\(topProd)**. Score: **\(score)/100**."
         }
-
-        // Producto estrella
-        if q.contains("producto") || q.contains("estrella") || q.contains("vendo más") || q.contains("mejor producto") {
-            let price = Int(ProductCatalog.prices[topProd] ?? 0)
-            return "⭐ Tu producto más vendido es **\(topProd)** (Bs. \(price) c/u). Ticket promedio actual: **Bs. \(ticket)**. Considera preparar más en los horarios de mayor demanda para maximizar tus ventas."
+        if q.contains("combo") || q.contains("promoción") || q.contains("promocion") {
+            let activeProds = state.catalogProducts.filter { $0.isActive }.prefix(3).map { $0.name }.joined(separator: ", ")
+            return "💡 Para crear un combo rentable, combina tus productos más vendidos. Tienes: \(activeProds). Ve a la tab Catálogo → Combos para crear tu primera promoción. ¡Los combos pueden subir tu ticket promedio un 20%!"
         }
-
-        // Score / mejorar score
-        if q.contains("score") || q.contains("puntaje") || q.contains("mejorar score") {
-            let tips = score >= 85 ? "¡Estás en nivel Platino! Mantén tu constancia. 🏆" :
-                       score >= 70 ? "Para subir más: registra TODAS tus ventas diariamente y mantén constancia. 📈" :
-                       "Para mejorar rápido: 1️⃣ Registra ventas todos los días, 2️⃣ Apunta al menos Bs. 150/día, 3️⃣ Usa el micrófono para no olvidar ninguna venta."
-            return "📈 Tu Tinka Score actual es **\(score)/100**. \(tips)"
+        if q.contains("producto") || q.contains("estrella") || q.contains("vendo más") {
+            let price = Int(state.catalogProducts.first { $0.name == topProd }?.price ?? 5)
+            return "⭐ Tu producto más vendido es **\(topProd)** (Bs. \(price) c/u). Ticket promedio: **Bs. \(ticket)**. Asegúrate de tener siempre stock disponible."
         }
-
-        // Microcrédito
-        if q.contains("crédito") || q.contains("microcrédito") || q.contains("préstamo") || q.contains("prestamo") {
-            return score >= 60
-                ? "💳 ¡Buenas noticias! Con Score **\(score)/100** y ventas de **Bs. \(Int(week))** esta semana, calificas para microcrédito hasta **Bs. 15,000** con Banco FIE. Ve a la tab de Crédito para simular tu cuota. 🎯"
-                : "💳 Tu Score actual es **\(score)/100**. Necesitas al menos 60 pts para calificar. Sigue registrando ventas diariamente — en pocos días podrás acceder. 📈"
+        if q.contains("score") || q.contains("puntaje") {
+            let tip = score >= 75 ? "¡Vas excelente! 🏆" : "Registra ventas todos los días para subir más. 📈"
+            return "📈 Tu Tinka Score es **\(score)/100**. \(tip)"
         }
-
-        // Mejorar negocio / consejos
-        if q.contains("mejorar") || q.contains("consejo") || q.contains("tip") || q.contains("recomendación") {
-            return "💡 Mis recomendaciones para \(today == 0 ? "empezar bien el día" : "mejorar tus ventas"):\n1️⃣ Usa el micrófono 🎤 para registrar cada venta al momento\n2️⃣ Revisa tu reporte semanal cada domingo\n3️⃣ Tu ticket prom. es Bs. \(ticket) — ofrece combos para subirlo\n4️⃣ \(topProd) es tu estrella, ¡prioriza su stock!"
+        if q.contains("mejorar") || q.contains("consejo") || q.contains("tip") || q.contains("semana") {
+            return "💡 Recomendaciones:\n1️⃣ Usa el micrófono 🎤 para registrar cada venta\n2️⃣ Revisa tu reporte semanal\n3️⃣ Ticket prom: Bs. \(ticket) — crea combos para subirlo\n4️⃣ **\(topProd)** es tu estrella, asegura su stock"
         }
-
-        // Utilidad / ganancias
-        if q.contains("utilidad") || q.contains("ganancia") || q.contains("ingreso") {
-            return "💵 Esta semana tu utilidad estimada es **Bs. \(utility)** (35% de Bs. \(Int(week)) en ventas). Hoy: **Bs. \(Int(today * 0.35))** de utilidad. \(utility > 200 ? "¡Muy buen margen! 🌟" : "Sigue vendiendo para aumentar tus ganancias. 💪")"
+        if q.contains("utilidad") || q.contains("ganancia") {
+            return "💵 Utilidad estimada esta semana: **Bs. \(utility)** (35% de Bs. \(Int(week))). Hoy: **Bs. \(Int(today * 0.35))**. \(utility > 200 ? "¡Muy buen margen! 🌟" : "Sigue vendiendo. 💪")"
         }
-
-        // Respuesta genérica con datos reales
-        return "🤖 Hola Doña María. Hoy llevas **Bs. \(Int(today))** y esta semana **Bs. \(Int(week))**. Tu Score es **\(score)/100** y tu producto estrella es **\(topProd)**. ¿Quieres que te explique algo específico sobre tus ventas o finanzas? 😊"
+        return "🤖 Hola Doña María. Hoy: **Bs. \(Int(today))**, semana: **Bs. \(Int(week))**. Score: **\(score)/100**. Estrella: **\(topProd)**. Activa Gemini IA para respuestas más inteligentes 🔑"
     }
 }
 

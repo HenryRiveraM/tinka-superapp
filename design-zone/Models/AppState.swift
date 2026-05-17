@@ -42,23 +42,83 @@ struct ChatMessage: Identifiable, Codable {
     }
 }
 
-// MARK: - Product Catalog
+// MARK: - Catalog Product
+
+struct CatalogProduct: Identifiable, Codable {
+    let id: UUID
+    var name: String
+    var price: Double
+    var category: String
+    var emoji: String
+    var description: String
+    var isActive: Bool
+
+    init(id: UUID = UUID(), name: String, price: Double, category: String, emoji: String, description: String = "", isActive: Bool = true) {
+        self.id = id; self.name = name; self.price = price; self.category = category
+        self.emoji = emoji; self.description = description; self.isActive = isActive
+    }
+
+    var keywords: [String] { [name.lowercased()] }
+}
+
+// MARK: - Combo
+
+struct ProductCombo: Identifiable, Codable {
+    let id: UUID
+    var name: String
+    var items: [ComboItem]
+    var finalPrice: Double
+    var emoji: String
+    var isActive: Bool
+
+    init(id: UUID = UUID(), name: String, items: [ComboItem], finalPrice: Double, emoji: String = "🎁", isActive: Bool = true) {
+        self.id = id; self.name = name; self.items = items; self.finalPrice = finalPrice; self.emoji = emoji; self.isActive = isActive
+    }
+
+    var regularPrice: Double {
+        items.reduce(0) { $0 + $1.totalPrice }
+    }
+    var saving: Double { regularPrice - finalPrice }
+}
+
+struct ComboItem: Identifiable, Codable {
+    let id: UUID
+    var productId: UUID
+    var productName: String
+    var qty: Int
+    var unitPrice: Double
+    var totalPrice: Double { Double(qty) * unitPrice }
+
+    init(id: UUID = UUID(), productId: UUID, productName: String, qty: Int, unitPrice: Double) {
+        self.id = id; self.productId = productId; self.productName = productName; self.qty = qty; self.unitPrice = unitPrice
+    }
+}
+
+// MARK: - Product Catalog (legacy compatibility)
 
 enum ProductCatalog {
-    static let prices: [String: Double] = [
-        "Salteña": 5.0,
-        "Refresco": 4.0,
-        "Almuerzo": 15.0,
-        "Pique Macho": 35.0,
-        "Coca Cola": 12.0
-    ]
+    static var prices: [String: Double] {
+        let products = AppState.shared.catalogProducts.filter { $0.isActive }
+        var dict: [String: Double] = [:]
+        for p in products { dict[p.name] = p.price }
+        return dict
+    }
 
-    static let quickProducts: [(name: String, emoji: String, color: Color)] = [
-        ("Salteña",    "🫓", TinkaColor.magenta),
-        ("Refresco",   "🥤", TinkaColor.deepBlue),
-        ("Almuerzo",   "🍱", TinkaColor.royalPurple),
-        ("Pique Macho","🥩", Color(hex: "E97316"))
-    ]
+    static var quickProducts: [(name: String, emoji: String, color: Color)] {
+        AppState.shared.catalogProducts.filter { $0.isActive }.prefix(4).map { p in
+            (p.name, p.emoji, categoryColor(p.category))
+        }
+    }
+
+    static func categoryColor(_ category: String) -> Color {
+        switch category.lowercased() {
+        case "bebida", "bebidas": return TinkaColor.deepBlue
+        case "comida rápida", "snack": return TinkaColor.magenta
+        case "plato", "almuerzo": return TinkaColor.royalPurple
+        case "especial": return Color(hex: "E97316")
+        default: return TinkaColor.deepBlue
+        }
+    }
 }
 
 // MARK: - AppState
@@ -72,11 +132,21 @@ class AppState: ObservableObject {
     @Published var chatMessages: [ChatMessage] = [] {
         didSet { persistChat() }
     }
+    @Published var catalogProducts: [CatalogProduct] = [] {
+        didSet { persistCatalog() }
+    }
+    @Published var combos: [ProductCombo] = [] {
+        didSet { persistCombos() }
+    }
 
     init() {
         loadSales()
         loadChat()
+        loadCatalog()
+        loadCombos()
         if sales.isEmpty { sales = SeedData.defaultSales }
+        if catalogProducts.isEmpty { catalogProducts = SeedData.defaultProducts }
+        if combos.isEmpty { combos = SeedData.defaultCombos }
     }
 
     // MARK: - Computed properties
@@ -117,7 +187,15 @@ class AppState: ObservableObject {
         for sale in sales {
             for p in sale.products { counts[p.name, default: 0] += p.qty }
         }
-        return counts.max(by: { $0.value < $1.value })?.key ?? "Salteña"
+        return counts.max(by: { $0.value < $1.value })?.key ?? catalogProducts.first?.name ?? "Salteña"
+    }
+
+    var topProductsSummary: [(name: String, qty: Int)] {
+        var counts: [String: Int] = [:]
+        for sale in sales {
+            for p in sale.products { counts[p.name, default: 0] += p.qty }
+        }
+        return counts.sorted { $0.value > $1.value }.prefix(5).map { ($0.key, $0.value) }
     }
 
     var financialStatus: String {
@@ -158,6 +236,27 @@ class AppState: ObservableObject {
         }
     }
 
+    var businessContextForAI: String {
+        let topProds = topProductsSummary.map { "\($0.name): \($0.qty) unidades" }.joined(separator: ", ")
+        let activeProducts = catalogProducts.filter { $0.isActive }.map { "\($0.name) (Bs. \($0.price))" }.joined(separator: ", ")
+        let activeCombos = combos.filter { $0.isActive }.map { "\($0.name) (Bs. \($0.finalPrice))" }.joined(separator: ", ")
+        return """
+Contexto del negocio de Doña María:
+- Ventas hoy: Bs. \(Int(todaySales)) (\(todaySaleCount) ventas)
+- Ventas esta semana: Bs. \(Int(weekSales)) (\(weekSaleCount) ventas)
+- Ventas este mes: Bs. \(Int(monthSales))
+- Utilidad estimada (35%): Bs. \(Int(utilityEstimate))
+- Ticket promedio: Bs. \(Int(averageTicket))
+- Producto estrella: \(topProduct)
+- Top productos vendidos: \(topProds.isEmpty ? "sin datos" : topProds)
+- Estado financiero: \(financialStatus)
+- Tinka Score: \(tinkaScore)/100
+- Catálogo activo: \(activeProducts.isEmpty ? "sin productos" : activeProducts)
+- Combos activos: \(activeCombos.isEmpty ? "sin combos" : activeCombos)
+- Tendencia semanal (últ. 7 días): \(dailyTrend.map { "\($0.day):\(Int($0.value))" }.joined(separator: ", "))
+"""
+    }
+
     // MARK: - Actions
 
     func addSale(_ sale: SaleItem) {
@@ -183,6 +282,40 @@ class AppState: ObservableObject {
         }
     }
 
+    func addProduct(_ product: CatalogProduct) {
+        withAnimation { catalogProducts.append(product) }
+    }
+
+    func updateProduct(_ product: CatalogProduct) {
+        if let idx = catalogProducts.firstIndex(where: { $0.id == product.id }) {
+            withAnimation { catalogProducts[idx] = product }
+        }
+    }
+
+    func deleteProduct(_ id: UUID) {
+        withAnimation { catalogProducts.removeAll { $0.id == id } }
+    }
+
+    func toggleProduct(_ id: UUID) {
+        if let idx = catalogProducts.firstIndex(where: { $0.id == id }) {
+            withAnimation { catalogProducts[idx].isActive.toggle() }
+        }
+    }
+
+    func addCombo(_ combo: ProductCombo) {
+        withAnimation { combos.append(combo) }
+    }
+
+    func updateCombo(_ combo: ProductCombo) {
+        if let idx = combos.firstIndex(where: { $0.id == combo.id }) {
+            withAnimation { combos[idx] = combo }
+        }
+    }
+
+    func deleteCombo(_ id: UUID) {
+        withAnimation { combos.removeAll { $0.id == id } }
+    }
+
     // MARK: - Persistence
 
     private func persistSales() {
@@ -206,6 +339,28 @@ class AppState: ObservableObject {
               let decoded = try? JSONDecoder().decode([ChatMessage].self, from: data) else { return }
         chatMessages = decoded
     }
+
+    private func persistCatalog() {
+        guard let data = try? JSONEncoder().encode(catalogProducts) else { return }
+        UserDefaults.standard.set(data, forKey: "tinka_catalog_v1")
+    }
+
+    private func loadCatalog() {
+        guard let data = UserDefaults.standard.data(forKey: "tinka_catalog_v1"),
+              let decoded = try? JSONDecoder().decode([CatalogProduct].self, from: data) else { return }
+        catalogProducts = decoded
+    }
+
+    private func persistCombos() {
+        guard let data = try? JSONEncoder().encode(combos) else { return }
+        UserDefaults.standard.set(data, forKey: "tinka_combos_v1")
+    }
+
+    private func loadCombos() {
+        guard let data = UserDefaults.standard.data(forKey: "tinka_combos_v1"),
+              let decoded = try? JSONDecoder().decode([ProductCombo].self, from: data) else { return }
+        combos = decoded
+    }
 }
 
 // MARK: - Period enum
@@ -227,6 +382,39 @@ enum SeedData {
             SaleItem(date: ago(26), products: [.init(name: "Salteña", qty: 8, price: 5)], total: 40, channel: .manual),
             SaleItem(date: ago(27), products: [.init(name: "Almuerzo", qty: 3, price: 15)], total: 45, channel: .quick),
             SaleItem(date: ago(50), products: [.init(name: "Salteña", qty: 10, price: 5), .init(name: "Refresco", qty: 5, price: 4)], total: 70, channel: .voice)
+        ]
+    }
+
+    static var defaultProducts: [CatalogProduct] {[
+        CatalogProduct(name: "Salteña", price: 5, category: "Snack", emoji: "🫓", description: "Salteña tradicional boliviana"),
+        CatalogProduct(name: "Refresco", price: 4, category: "Bebida", emoji: "🥤", description: "Bebida fría"),
+        CatalogProduct(name: "Almuerzo", price: 15, category: "Plato", emoji: "🍱", description: "Menú del día completo"),
+        CatalogProduct(name: "Pique Macho", price: 35, category: "Especial", emoji: "🥩", description: "Pique macho tradicional"),
+        CatalogProduct(name: "Coca Cola", price: 12, category: "Bebida", emoji: "🥫", description: "Gaseosa personal"),
+    ]}
+
+    static var defaultCombos: [ProductCombo] {
+        let prods = defaultProducts
+        let salteña = prods[0]; let refresco = prods[1]; let almuerzo = prods[2]
+        return [
+            ProductCombo(
+                name: "Combo Desayuno",
+                items: [
+                    ComboItem(productId: salteña.id, productName: salteña.name, qty: 2, unitPrice: salteña.price),
+                    ComboItem(productId: refresco.id, productName: refresco.name, qty: 1, unitPrice: refresco.price)
+                ],
+                finalPrice: 12,
+                emoji: "🌅"
+            ),
+            ProductCombo(
+                name: "Combo Ejecutivo",
+                items: [
+                    ComboItem(productId: almuerzo.id, productName: almuerzo.name, qty: 1, unitPrice: almuerzo.price),
+                    ComboItem(productId: refresco.id, productName: refresco.name, qty: 1, unitPrice: refresco.price)
+                ],
+                finalPrice: 17,
+                emoji: "💼"
+            )
         ]
     }
 }

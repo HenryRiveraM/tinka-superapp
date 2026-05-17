@@ -7,10 +7,20 @@ struct AddSaleSheet: View {
     @State private var note = ""
     @State private var confirming = false
 
-    private let products = ProductCatalog.quickProducts.map(\.name) + ["Coca Cola"]
+    private var products: [String] {
+        state.catalogProducts.filter { $0.isActive }.map { $0.name }
+    }
 
     var total: Double {
-        quantities.reduce(0) { $0 + Double($1.value) * (ProductCatalog.prices[$1.key] ?? 0) }
+        let catalog = state.catalogProducts
+        return quantities.reduce(0) { acc, kv in
+            let price = catalog.first { $0.name == kv.key }?.price ?? 0
+            return acc + Double(kv.value) * price
+        }
+    }
+
+    private func priceFor(_ name: String) -> Double {
+        state.catalogProducts.first { $0.name == name }?.price ?? 0
     }
 
     var body: some View {
@@ -51,7 +61,7 @@ struct AddSaleSheet: View {
     private var productRows: some View {
         VStack(spacing: 0) {
             ForEach(products, id: \.self) { product in
-                let price = ProductCatalog.prices[product] ?? 0
+                let price = priceFor(product)
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(product).font(.tinka(15, weight: .medium)).foregroundColor(TinkaColor.darkNavy)
@@ -107,7 +117,7 @@ struct AddSaleSheet: View {
             confirming = true
             let prods = quantities.compactMap { kv -> SaleProduct? in
                 guard kv.value > 0 else { return nil }
-                return SaleProduct(name: kv.key, qty: kv.value, price: ProductCatalog.prices[kv.key] ?? 0)
+                return SaleProduct(name: kv.key, qty: kv.value, price: priceFor(kv.key))
             }
             state.addSale(SaleItem(date: Date(), products: prods, total: total, channel: .manual))
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { dismiss() }

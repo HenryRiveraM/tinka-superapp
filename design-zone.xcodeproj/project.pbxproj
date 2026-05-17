@@ -12,16 +12,18 @@
 		200494EFA28125E73034ED25 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E644DC0FFDF6D36B8AF8463D /* AppState.swift */; };
 		32F114B294AFAF28EF7B2301 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C107C94DBEED66369FB79A4B /* LaunchScreen.storyboard */; };
 		3B1C7DF49EED93C1947F7FEF /* SalesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63F868B6005BEEB08EC83575 /* SalesView.swift */; };
+		3E8FAADE9881928CF59186AA /* ComboFormSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00735E9CB362F2A29997ACC2 /* ComboFormSheet.swift */; };
 		3F1A7B759847D656BA987F2F /* HomeDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EC3D77C58A44F9B9F90173A /* HomeDashboardView.swift */; };
 		41CB5CD8B30404DB9587AE99 /* TinkaChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ACEB3234070AE003E6BF4B2 /* TinkaChatView.swift */; };
 		4EAF0E8E6350CB80D317877A /* TinkaTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44FC836039282F21A35A2243 /* TinkaTheme.swift */; };
 		51D4EB08CE4D3B2977D1AA01 /* PlaceholderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C8527C68ECB2F2956FD1E45 /* PlaceholderScreen.swift */; };
 		5318E6F41B8A6E7263FEF8B7 /* AIInsightsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8FB54C4E85E3E5D8D3E8A0C /* AIInsightsSection.swift */; };
 		548E5AEAA24D67E919AEC597 /* VoiceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D50D5D3D55D2E9082E9F47B6 /* VoiceView.swift */; };
+		6540DC347482301A8AA79146 /* GeminiService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D905B7F9B111D9FFB42893A1 /* GeminiService.swift */; };
 		6D231F6EF0E8442B1A6F322C /* QuickActionsGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E026130BB3CF0BA7E18FD8 /* QuickActionsGrid.swift */; };
 		70DEEB0CE4DE576301FD90F7 /* TinkaTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F43E2F5C1943545E6D34C494 /* TinkaTabBar.swift */; };
 		7E64D7D9BDAF003EF327C0B2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 378CE7BDFAD3BE200834E2E6 /* Assets.xcassets */; };
-		8D4262F824F12C0374898D2C /* MicrocreditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CAC9176724BA267DDACFA00 /* MicrocreditView.swift */; };
+		8AB90CD178E63920036FD9F3 /* ProductFormSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922DD9B63F8E4C1A60999013 /* ProductFormSheet.swift */; };
 		926BC830C75B6F6CAE1CEB9E /* AddSaleSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D24697E7DD172E9DB23C9B3D /* AddSaleSheet.swift */; };
 		B5AC69BA0D7AD4070773308A /* HomeHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4E9A015949300902E15279 /* HomeHeaderView.swift */; };
 		C451C4B707F600372AED2D28 /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68AC5D6F6F0D8E88DD5FA3DB /* SampleData.swift */; };
@@ -32,9 +34,11 @@
 		DEA69761F8E952D2899FAED1 /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90F2C12BD4061F8419D9F367 /* SpeechRecognizer.swift */; };
 		E497046FD6F8C7C8E4FFEB66 /* KPIRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943FA8C62346285B71990D66 /* KPIRow.swift */; };
 		EA1BA37FCC538C24FE66903A /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E212E173B530F7F74E9629D3 /* RootView.swift */; };
+		EECC2621DFE173ACA0C4580F /* ProductCatalogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73627E8ACB9B5B38FD9E862 /* ProductCatalogView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		00735E9CB362F2A29997ACC2 /* ComboFormSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComboFormSheet.swift; sourceTree = "<group>"; };
 		1ACEB3234070AE003E6BF4B2 /* TinkaChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaChatView.swift; sourceTree = "<group>"; };
 		1EC3D77C58A44F9B9F90173A /* HomeDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeDashboardView.swift; sourceTree = "<group>"; };
 		378CE7BDFAD3BE200834E2E6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -44,20 +48,22 @@
 		612C2C9C83BBFA562675FDBB /* WeeklyTrendCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyTrendCard.swift; sourceTree = "<group>"; };
 		63F868B6005BEEB08EC83575 /* SalesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SalesView.swift; sourceTree = "<group>"; };
 		68AC5D6F6F0D8E88DD5FA3DB /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
-		7CAC9176724BA267DDACFA00 /* MicrocreditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrocreditView.swift; sourceTree = "<group>"; };
 		7F70752F6C0ACA19174E34E2 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		90F2C12BD4061F8419D9F367 /* SpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognizer.swift; sourceTree = "<group>"; };
+		922DD9B63F8E4C1A60999013 /* ProductFormSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductFormSheet.swift; sourceTree = "<group>"; };
 		943FA8C62346285B71990D66 /* KPIRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KPIRow.swift; sourceTree = "<group>"; };
 		992BBDF353627A9A7D41A991 /* TinkaScoreCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaScoreCard.swift; sourceTree = "<group>"; };
 		9A148217D48266BAD5A8A9C0 /* TinkaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaApp.swift; sourceTree = "<group>"; };
 		9C8527C68ECB2F2956FD1E45 /* PlaceholderScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderScreen.swift; sourceTree = "<group>"; };
 		A6E026130BB3CF0BA7E18FD8 /* QuickActionsGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionsGrid.swift; sourceTree = "<group>"; };
 		A96B8A165F4E78BF720F4A67 /* HeroBalanceCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeroBalanceCard.swift; sourceTree = "<group>"; };
+		B73627E8ACB9B5B38FD9E862 /* ProductCatalogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductCatalogView.swift; sourceTree = "<group>"; };
 		BA0713200B402CD96B31C7B3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C635507D74FDF176C3D3D45D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		D24697E7DD172E9DB23C9B3D /* AddSaleSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSaleSheet.swift; sourceTree = "<group>"; };
 		D50D5D3D55D2E9082E9F47B6 /* VoiceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceView.swift; sourceTree = "<group>"; };
 		D8FB54C4E85E3E5D8D3E8A0C /* AIInsightsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIInsightsSection.swift; sourceTree = "<group>"; };
+		D905B7F9B111D9FFB42893A1 /* GeminiService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiService.swift; sourceTree = "<group>"; };
 		E195C77BF82CBCD88512A52A /* ReportsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportsView.swift; sourceTree = "<group>"; };
 		E212E173B530F7F74E9629D3 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		E644DC0FFDF6D36B8AF8463D /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
@@ -110,8 +116,8 @@
 			children = (
 				9C8527C68ECB2F2956FD1E45 /* PlaceholderScreen.swift */,
 				73FE5384B6C225BA838EA452 /* Chat */,
-				586A569F9E2E43664A6E67CB /* Credit */,
 				0D425725C7A3E3A66482562E /* Home */,
+				AC4D8D3F2A4B8C5A6D923F9C /* Products */,
 				AE85ED71AC66151799C64630 /* Profile */,
 				E7F4F2381CE6A1BD3C4EF16C /* Reports */,
 				EB5AE03AFDCC2B6AABCD98A8 /* Sales */,
@@ -120,18 +126,11 @@
 			path = Screens;
 			sourceTree = "<group>";
 		};
-		586A569F9E2E43664A6E67CB /* Credit */ = {
-			isa = PBXGroup;
-			children = (
-				7CAC9176724BA267DDACFA00 /* MicrocreditView.swift */,
-			);
-			path = Credit;
-			sourceTree = "<group>";
-		};
 		69A8B68452B10E4150E18D3E /* Models */ = {
 			isa = PBXGroup;
 			children = (
 				E644DC0FFDF6D36B8AF8463D /* AppState.swift */,
+				D905B7F9B111D9FFB42893A1 /* GeminiService.swift */,
 				68AC5D6F6F0D8E88DD5FA3DB /* SampleData.swift */,
 			);
 			path = Models;
@@ -151,6 +150,16 @@
 				9A148217D48266BAD5A8A9C0 /* TinkaApp.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		AC4D8D3F2A4B8C5A6D923F9C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				00735E9CB362F2A29997ACC2 /* ComboFormSheet.swift */,
+				B73627E8ACB9B5B38FD9E862 /* ProductCatalogView.swift */,
+				922DD9B63F8E4C1A60999013 /* ProductFormSheet.swift */,
+			);
+			path = Products;
 			sourceTree = "<group>";
 		};
 		AE85ED71AC66151799C64630 /* Profile */ = {
@@ -279,12 +288,15 @@
 				5318E6F41B8A6E7263FEF8B7 /* AIInsightsSection.swift in Sources */,
 				926BC830C75B6F6CAE1CEB9E /* AddSaleSheet.swift in Sources */,
 				200494EFA28125E73034ED25 /* AppState.swift in Sources */,
+				3E8FAADE9881928CF59186AA /* ComboFormSheet.swift in Sources */,
+				6540DC347482301A8AA79146 /* GeminiService.swift in Sources */,
 				08A560F2206464E2E666CEEA /* HeroBalanceCard.swift in Sources */,
 				3F1A7B759847D656BA987F2F /* HomeDashboardView.swift in Sources */,
 				B5AC69BA0D7AD4070773308A /* HomeHeaderView.swift in Sources */,
 				E497046FD6F8C7C8E4FFEB66 /* KPIRow.swift in Sources */,
-				8D4262F824F12C0374898D2C /* MicrocreditView.swift in Sources */,
 				51D4EB08CE4D3B2977D1AA01 /* PlaceholderScreen.swift in Sources */,
+				EECC2621DFE173ACA0C4580F /* ProductCatalogView.swift in Sources */,
+				8AB90CD178E63920036FD9F3 /* ProductFormSheet.swift in Sources */,
 				09EF9595903FCCEA32C40804 /* ProfileView.swift in Sources */,
 				6D231F6EF0E8442B1A6F322C /* QuickActionsGrid.swift in Sources */,
 				D3C2D72DD613C63415198E53 /* ReportsView.swift in Sources */,
