@@ -153,7 +153,7 @@ struct QuickSaleGrid: View {
     ]
 
     var totalBs: Double {
-        quantities.reduce(0) { $0 + Double($1.value) * (SeedData.products[$1.key] ?? 0) }
+        quantities.reduce(0) { $0 + Double($1.value) * (ProductCatalog.prices[$1.key] ?? 0) }
     }
 
     var body: some View {
@@ -169,7 +169,7 @@ struct QuickSaleGrid: View {
                 Button {
                     let products = quantities.compactMap { kv -> SaleProduct? in
                         guard kv.value > 0 else { return nil }
-                        return SaleProduct(name: kv.key, qty: kv.value, price: SeedData.products[kv.key] ?? 0)
+                        return SaleProduct(name: kv.key, qty: kv.value, price: ProductCatalog.prices[kv.key] ?? 0)
                     }
                     state.addSale(SaleItem(date: Date(), products: products, total: totalBs, channel: .quick))
                     quantities = quantities.mapValues { _ in 0 }
@@ -198,7 +198,7 @@ struct QuickProductTile: View {
         VStack(spacing: 6) {
             Text(emoji).font(.system(size: 32))
             Text(name).font(.tinka(12, weight: .medium)).foregroundColor(TinkaColor.darkNavy).multilineTextAlignment(.center)
-            Text("Bs. \(SeedData.products[name] ?? 0, specifier: "%.0f")").font(.tinka(11)).foregroundColor(TinkaColor.subtleText)
+            Text("Bs. \(ProductCatalog.prices[name] ?? 0, specifier: "%.0f")").font(.tinka(11)).foregroundColor(TinkaColor.subtleText)
             HStack(spacing: 0) {
                 Button(action: onRemove) { Image(systemName: "minus").font(.system(size: 12, weight: .bold)).foregroundColor(color).frame(width: 28, height: 28) }
                 Text("\(qty)").font(.tinka(15, weight: .bold)).foregroundColor(TinkaColor.darkNavy).frame(width: 30)

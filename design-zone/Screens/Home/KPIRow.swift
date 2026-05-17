@@ -2,15 +2,12 @@ import SwiftUI
 
 struct KPIRow: View {
     @EnvironmentObject var state: AppState
-    var growthPct: Int {
-        let prev = max(state.weekSales * 0.85, 1)
-        return Int(((state.weekSales - prev) / prev) * 100)
-    }
+
     var body: some View {
         HStack(spacing: 12) {
-            kpi(icon: "leaf.fill", title: "Salud", value: state.tinkaScore > 75 ? "Saludable" : "Regular", tint: TinkaColor.green)
-            kpi(icon: "chart.bar.fill", title: "Crecimiento", value: "+\(growthPct)%", tint: TinkaColor.deepBlue)
-            kpi(icon: "creditcard.fill", title: "Cashflow", value: "Estable", tint: TinkaColor.royalPurple)
+            kpi(icon: "leaf.fill",    title: "Salud",        value: state.financialStatus, tint: state.financialStatusColor)
+            kpi(icon: "star.fill",    title: "Top producto", value: state.topProduct,       tint: TinkaColor.deepBlue)
+            kpi(icon: "tag.fill",     title: "Ticket prom.", value: "Bs. \(Int(state.averageTicket))", tint: TinkaColor.royalPurple)
         }
     }
 
@@ -18,19 +15,11 @@ struct KPIRow: View {
         VStack(alignment: .leading, spacing: 10) {
             ZStack {
                 Circle().fill(tint.opacity(0.15)).frame(width: 32, height: 32)
-                Image(systemName: icon)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(tint)
+                Image(systemName: icon).font(.system(size: 13, weight: .bold)).foregroundStyle(tint)
             }
-            Text(title)
-                .font(.tinka(10, weight: .semibold))
-                .foregroundStyle(TinkaColor.subtleText)
-            Text(value)
-                .font(.tinka(14, weight: .bold))
-                .foregroundStyle(TinkaColor.darkNavy)
+            Text(title).font(.tinka(10, weight: .semibold)).foregroundStyle(TinkaColor.subtleText)
+            Text(value).font(.tinka(13, weight: .bold)).foregroundStyle(TinkaColor.darkNavy).lineLimit(1).minimumScaleFactor(0.7)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .glassCard(cornerRadius: 20)
+        .frame(maxWidth: .infinity, alignment: .leading).padding(14).glassCard(cornerRadius: 20)
     }
 }

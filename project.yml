@@ -39,6 +39,8 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleIconName: AppIcon
         ITSAppUsesNonExemptEncryption: false
+        NSSpeechRecognitionUsageDescription: "Tinka necesita reconocimiento de voz para registrar tus ventas hablando."
+        NSMicrophoneUsageDescription: "Tinka necesita el micrófono para escuchar tus ventas por voz."
         LSRequiresIPhoneOS: true
         UIApplicationSupportsIndirectInputEvents: true
         UILaunchStoryboardName: LaunchScreen

@@ -9,7 +9,7 @@ struct AddSaleSheet: View {
     let products = ["Salteña", "Refresco", "Almuerzo", "Pique Macho"]
 
     var total: Double {
-        quantities.reduce(0) { $0 + Double($1.value) * (SeedData.products[$1.key] ?? 0) }
+        quantities.reduce(0) { $0 + Double($1.value) * (ProductCatalog.prices[$1.key] ?? 0) }
     }
 
     var body: some View {
@@ -46,7 +46,7 @@ struct AddSaleSheet: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(product).font(.tinka(15, weight: .medium)).foregroundColor(TinkaColor.darkNavy)
-                        Text("Bs. \(SeedData.products[product] ?? 0, specifier: "%.0f") c/u").font(.tinka(12)).foregroundColor(TinkaColor.subtleText)
+                        Text("Bs. \(ProductCatalog.prices[product] ?? 0, specifier: "%.0f") c/u").font(.tinka(12)).foregroundColor(TinkaColor.subtleText)
                     }
                     Spacer()
                     HStack(spacing: 12) {
@@ -89,7 +89,7 @@ struct AddSaleSheet: View {
             guard total > 0 else { return }
             let prods = quantities.compactMap { kv -> SaleProduct? in
                 guard kv.value > 0 else { return nil }
-                return SaleProduct(name: kv.key, qty: kv.value, price: SeedData.products[kv.key] ?? 0)
+                return SaleProduct(name: kv.key, qty: kv.value, price: ProductCatalog.prices[kv.key] ?? 0)
             }
             state.addSale(SaleItem(date: Date(), products: prods, total: total, channel: .manual))
             dismiss()

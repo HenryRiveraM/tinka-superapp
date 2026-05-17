@@ -173,26 +173,32 @@ struct TinkaChatView: View {
         let score = state.tinkaScore
         let today = state.todaySales
         let week = state.weekSales
+        let topProd = state.topProduct
+        let status = state.financialStatus
+        let ticket = Int(state.averageTicket)
+        let utility = Int(state.utilityEstimate)
 
-        if q.contains("negocio") || q.contains("cómo va") || q.contains("como va") {
-            return "📊 Tu negocio va muy bien, Doña María. Esta semana llevas Bs. \(Int(week)) en ventas, con un promedio diario de Bs. \(Int(week/7)). Tu Tinka Score es \(score)/100, lo que indica una salud financiera sólida. ¡Sigue así! 💪"
+        if q.contains("negocio") || q.contains("cómo va") || q.contains("como va") || q.contains("resumen") {
+            return "📊 Tu negocio está \(status.lowercased()), Doña María. Esta semana llevas Bs. \(Int(week)) en ventas, con utilidad estimada de Bs. \(utility). Tu Tinka Score es \(score)/100. \(score >= 75 ? "¡Sigue así! 💪" : "¡Cada venta cuenta! 🚀")"
         }
         if q.contains("crédito") || q.contains("microcrédito") || q.contains("prestamo") || q.contains("préstamo") {
-            return "💳 ¡Buenas noticias! Con tu Tinka Score de \(score)/100 y ventas constantes de más de Bs. 400/día, eres una candidata ideal para un microcrédito. Puedes acceder a montos desde Bs. 2.000 hasta Bs. 15.000 a tasas preferenciales. Ve a la sección Crédito para simular tu préstamo. 🎯"
+            let eligible = score >= 60
+            return eligible
+                ? "💳 ¡Buenas noticias! Con tu Tinka Score de \(score)/100 y ventas constantes, eres candidata ideal para un microcrédito. Puedes acceder a montos desde Bs. 2.000 hasta Bs. 15.000. Ve a la sección Crédito para simular tu préstamo. 🎯"
+                : "💳 Tu Tinka Score actual es \(score)/100. Necesitas al menos 60 puntos para calificar. Sigue registrando ventas diariamente y llegarás pronto. 📈"
         }
         if q.contains("producto") || q.contains("vendo más") || q.contains("mejor") {
-            return "⭐ Tus salteñas son tu producto estrella — representan el 58% de tus ventas y tienen un margen del 62%. Los refrescos son el segundo más vendido. Los viernes son tus mejores días, con ventas 42% por encima del promedio. ¡Considera preparar más cantidad esos días! 🫓"
+            return "⭐ Tu producto estrella es **\(topProd)** — es el más vendido en tu historial. El ticket promedio es Bs. \(ticket). ¡Considera preparar más en los días de mayor demanda! 🫓"
         }
         if q.contains("score") || q.contains("mejorar") || q.contains("puntaje") {
-            return "📈 Tu Tinka Score actual es \(score)/100. Para mejorarlo: 1️⃣ Registra todas tus ventas diariamente (+5 puntos), 2️⃣ Mantén tus gastos por debajo del 40% de ingresos (+8 puntos), 3️⃣ Alcanza Bs. 500/día de promedio (+7 puntos). ¡Estás muy cerca del nivel Platino!"
+            return "📈 Tu Tinka Score actual es \(score)/100. Para mejorarlo: 1️⃣ Registra todas tus ventas diariamente, 2️⃣ Mantén constancia en registros, 3️⃣ Aumenta tu promedio diario. \(score >= 85 ? "¡Estás en nivel Platino! 🏆" : "¡Vas muy bien! 💪")"
         }
-        if q.contains("gasto") || q.contains("gastos") {
-            return "💸 Esta semana tus gastos suman Bs. \(Int(state.expenses.reduce(0){$0+$1.amount})), principalmente en insumos (harina, aceite) y servicios (gas). Representan el 32% de tus ingresos — dentro del rango saludable (ideal <40%). ¡Buen control, Doña María! ✅"
+        if q.contains("hoy") || q.contains("día") {
+            return today > 0
+                ? "📅 Hoy llevas Bs. \(Int(today)) en ventas con \(state.todaySaleCount) venta(s) registradas. Tu estado financiero de hoy es: **\(status)**. \(today >= 300 ? "¡Excelente día! 🌟" : "¡Sigue vendiendo! 💪")"
+                : "📅 Aún no has registrado ventas hoy. ¡Empieza ahora con el botón Voz o Ventas! 🎤"
         }
-        if q.contains("consejo") || q.contains("recomendación") || q.contains("tip") {
-            return "💡 Mi consejo para hoy: Dado que los viernes son tus mejores días, podrías preparar un 30% más de salteñas ese día. También podrías ofrecer un combo \"Salteña + Refresco\" a Bs. 8 (descuento de Bs. 1) para aumentar el ticket promedio. ¿Quieres que simule cuánto ganarías? 🚀"
-        }
-        return "🤔 Entendí tu pregunta sobre \"\(question)\". Basándome en tus datos: llevas Bs. \(Int(today)) hoy y Bs. \(Int(week)) esta semana. Tu score es \(score)/100. ¿Puedes ser más específica para darte una mejor respuesta? 😊"
+        return "🤔 Basándome en tus datos: llevas Bs. \(Int(today)) hoy y Bs. \(Int(week)) esta semana. Tu score es \(score)/100. ¿Puedo ayudarte con algo más específico? 😊"
     }
 }
 

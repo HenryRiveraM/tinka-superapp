@@ -1,19 +1,16 @@
 import SwiftUI
+import Speech
 
-enum VoiceState {
-    case idle, listening, processing, result
-}
+enum VoiceFlowState { case idle, listening, processing, result }
 
 struct VoiceView: View {
     @EnvironmentObject var state: AppState
-    @State private var voiceState: VoiceState = .idle
-    @State private var transcript = ""
+    @StateObject private var speech = SpeechRecognizer()
+    @State private var flowState: VoiceFlowState = .idle
     @State private var parsedProducts: [SaleProduct] = []
-    @State private var wavePhase: CGFloat = 0
     @State private var pulseScale: CGFloat = 1.0
     @State private var showSuccess = false
-
-    private let simulatedText = "Vendí tres salteñas y dos refrescos"
+    @State private var showPermissionAlert = false
 
     var parsedTotal: Double { parsedProducts.reduce(0) { $0 + $1.subtotal } }
 
@@ -23,20 +20,40 @@ struct VoiceView: View {
             VStack(spacing: 0) {
                 header
                 Spacer()
-                switch voiceState {
-                case .idle: idleView
-                case .listening: listeningView
-                case .processing: processingView
-                case .result: resultView
-                }
+                currentStateView
                 Spacer()
                 Color.clear.frame(height: 110)
             }
             .padding(.horizontal, 24)
             if showSuccess { successOverlay }
         }
+        .onChange(of: speech.isListening) { _, isNow in
+            if !isNow && flowState == .listening { finishListening() }
+        }
+        .onChange(of: speech.permissionDenied) { _, denied in
+            if denied { showPermissionAlert = true }
+        }
+        .alert("Permisos requeridos", isPresented: $showPermissionAlert) {
+            Button("Abrir Ajustes") {
+                if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("Tinka necesita acceso al micrófono y reconocimiento de voz. Ve a Ajustes > Tinka para activarlos.")
+        }
     }
 
+    // MARK: State routing
+    @ViewBuilder private var currentStateView: some View {
+        switch flowState {
+        case .idle:       idleView
+        case .listening:  listeningView
+        case .processing: processingView
+        case .result:     resultView
+        }
+    }
+
+    // MARK: Background
     private var background: some View {
         ZStack {
             LinearGradient.tinkaSoftBackground.ignoresSafeArea()
@@ -53,40 +70,52 @@ struct VoiceView: View {
         .padding(.top, 16)
     }
 
-    // MARK: States
+    // MARK: Idle
     private var idleView: some View {
         VStack(spacing: 32) {
             micButton
             VStack(spacing: 8) {
                 Text("Toca el micrófono").font(.tinka(18, weight: .semibold)).foregroundColor(TinkaColor.darkNavy)
-                Text("Puedes decir cosas como:\n\"Vendí cinco salteñas y tres refrescos\"").font(.tinka(14)).foregroundColor(TinkaColor.subtleText).multilineTextAlignment(.center)
+                Text("Di cosas como:\n\"Vendí tres salteñas y dos refrescos\"")
+                    .font(.tinka(14)).foregroundColor(TinkaColor.subtleText).multilineTextAlignment(.center)
             }
             exampleChips
         }
     }
 
+    // MARK: Listening
     private var listeningView: some View {
         VStack(spacing: 32) {
             ZStack {
                 ForEach(0..<3, id: \.self) { i in
-                    Circle().stroke(TinkaColor.magenta.opacity(0.3 - Double(i) * 0.08), lineWidth: 2)
-                        .frame(width: 100 + CGFloat(i) * 40, height: 100 + CGFloat(i) * 40)
+                    Circle().stroke(TinkaColor.magenta.opacity(0.3 - Double(i)*0.08), lineWidth: 2)
+                        .frame(width: 100 + CGFloat(i)*40, height: 100 + CGFloat(i)*40)
                         .scaleEffect(pulseScale)
-                        .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true).delay(Double(i) * 0.2), value: pulseScale)
+                        .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true).delay(Double(i)*0.2), value: pulseScale)
                 }
                 micButton
             }
             .frame(width: 200, height: 200)
             VStack(spacing: 8) {
                 Text("Escuchando...").font(.tinka(20, weight: .semibold)).foregroundColor(TinkaColor.darkNavy)
-                if !transcript.isEmpty {
-                    Text(transcript).font(.tinka(15)).foregroundColor(TinkaColor.subtleText).multilineTextAlignment(.center).padding(.horizontal, 16).animation(.easeIn, value: transcript)
+                if !speech.transcript.isEmpty {
+                    Text(speech.transcript)
+                        .font(.tinka(15)).foregroundColor(TinkaColor.subtleText)
+                        .multilineTextAlignment(.center).padding(.horizontal, 16)
+                        .animation(.easeIn, value: speech.transcript)
                 }
             }
-            WaveformView(phase: $wavePhase)
+            WaveformView()
+            Button("Detener") { speech.stopListening() }
+                .font(.tinka(15, weight: .semibold)).foregroundColor(TinkaColor.magenta)
+                .padding(.horizontal, 24).padding(.vertical, 12)
+                .background(TinkaColor.magenta.opacity(0.1)).clipShape(Capsule())
+                .overlay(Capsule().stroke(TinkaColor.magenta.opacity(0.3)))
         }
+        .onAppear { pulseScale = 1.1 }
     }
 
+    // MARK: Processing
     private var processingView: some View {
         VStack(spacing: 24) {
             ZStack {
@@ -102,6 +131,7 @@ struct VoiceView: View {
         }
     }
 
+    // MARK: Result
     private var resultView: some View {
         VStack(spacing: 20) {
             transcriptCard
@@ -116,7 +146,8 @@ struct VoiceView: View {
                 Image(systemName: "quote.bubble.fill").foregroundColor(TinkaColor.deepBlue)
                 Text("Dijiste:").font(.tinka(13, weight: .semibold)).foregroundColor(TinkaColor.subtleText)
             }
-            Text("\"\(transcript)\"").font(.tinka(16, weight: .medium)).foregroundColor(TinkaColor.darkNavy).italic()
+            Text("\"\(speech.transcript)\"")
+                .font(.tinka(16, weight: .medium)).foregroundColor(TinkaColor.darkNavy).italic()
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading).glassCard(cornerRadius: 16)
     }
@@ -127,18 +158,23 @@ struct VoiceView: View {
                 Image(systemName: "checkmark.circle.fill").foregroundColor(TinkaColor.green)
                 Text("Tinka detectó:").font(.tinka(14, weight: .semibold)).foregroundColor(TinkaColor.darkNavy)
             }
-            ForEach(parsedProducts) { p in
-                HStack {
-                    Text("• \(p.qty)x \(p.name)").font(.tinka(15)).foregroundColor(TinkaColor.darkNavy)
-                    Spacer()
-                    Text("Bs. \(p.subtotal, specifier: "%.0f")").font(.tinka(14, weight: .semibold)).foregroundColor(TinkaColor.deepBlue)
+            if parsedProducts.isEmpty {
+                Text("No se detectaron productos. Intenta de nuevo.")
+                    .font(.tinka(14)).foregroundColor(TinkaColor.subtleText)
+            } else {
+                ForEach(parsedProducts) { p in
+                    HStack {
+                        Text("• \(p.qty)x \(p.name)").font(.tinka(15)).foregroundColor(TinkaColor.darkNavy)
+                        Spacer()
+                        Text("Bs. \(p.subtotal, specifier: "%.0f")").font(.tinka(14, weight: .semibold)).foregroundColor(TinkaColor.deepBlue)
+                    }
                 }
-            }
-            Divider()
-            HStack {
-                Text("Total").font(.tinka(16, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
-                Spacer()
-                Text("Bs. \(parsedTotal, specifier: "%.2f")").font(.tinka(20, weight: .bold)).foregroundColor(TinkaColor.magenta)
+                Divider()
+                HStack {
+                    Text("Total").font(.tinka(16, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
+                    Spacer()
+                    Text("Bs. \(parsedTotal, specifier: "%.2f")").font(.tinka(20, weight: .bold)).foregroundColor(TinkaColor.magenta)
+                }
             }
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading).glassCard(cornerRadius: 16)
@@ -148,18 +184,23 @@ struct VoiceView: View {
         VStack(spacing: 12) {
             Button { confirmSale() } label: {
                 Label("Confirmar venta", systemImage: "checkmark.circle.fill")
-                    .font(.tinka(16, weight: .bold)).foregroundColor(.white).frame(maxWidth: .infinity).padding(16)
-                    .background(LinearGradient.tinkaPrimary)
-                    .clipShape(RoundedRectangle(cornerRadius: 16)).shadow(color: TinkaColor.magenta.opacity(0.3), radius: 10, y: 5)
+                    .font(.tinka(16, weight: .bold)).foregroundColor(.white)
+                    .frame(maxWidth: .infinity).padding(16)
+                    .background(parsedProducts.isEmpty ? AnyShapeStyle(Color.gray.opacity(0.5)) : AnyShapeStyle(LinearGradient.tinkaPrimary))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .shadow(color: TinkaColor.magenta.opacity(0.3), radius: 10, y: 5)
             }
+            .disabled(parsedProducts.isEmpty)
             HStack(spacing: 12) {
                 Button { reset() } label: {
-                    Text("Cancelar").font(.tinka(15, weight: .medium)).foregroundColor(TinkaColor.subtleText).frame(maxWidth: .infinity).padding(14)
+                    Text("Cancelar").font(.tinka(15, weight: .medium)).foregroundColor(TinkaColor.subtleText)
+                        .frame(maxWidth: .infinity).padding(14)
                         .background(Color.white.opacity(0.7)).clipShape(RoundedRectangle(cornerRadius: 14))
                         .overlay(RoundedRectangle(cornerRadius: 14).stroke(TinkaColor.cardStroke))
                 }
                 Button { startListening() } label: {
-                    Text("Reintentar").font(.tinka(15, weight: .medium)).foregroundColor(TinkaColor.deepBlue).frame(maxWidth: .infinity).padding(14)
+                    Text("Reintentar").font(.tinka(15, weight: .medium)).foregroundColor(TinkaColor.deepBlue)
+                        .frame(maxWidth: .infinity).padding(14)
                         .background(TinkaColor.deepBlue.opacity(0.1)).clipShape(RoundedRectangle(cornerRadius: 14))
                         .overlay(RoundedRectangle(cornerRadius: 14).stroke(TinkaColor.deepBlue.opacity(0.3)))
                 }
@@ -167,22 +208,27 @@ struct VoiceView: View {
         }
     }
 
+    // MARK: Mic button
     private var micButton: some View {
         Button { handleMicTap() } label: {
             ZStack {
                 Circle().fill(LinearGradient.tinkaPrimary).frame(width: 90, height: 90)
                     .shadow(color: TinkaColor.magenta.opacity(0.45), radius: 20, y: 8)
-                Image(systemName: voiceState == .listening ? "stop.fill" : "mic.fill")
+                Image(systemName: flowState == .listening ? "stop.fill" : "mic.fill")
                     .font(.system(size: 34, weight: .bold)).foregroundColor(.white)
             }
         }
-        .scaleEffect(voiceState == .listening ? 1.05 : 1.0)
-        .animation(.spring(response: 0.4), value: voiceState)
+        .scaleEffect(flowState == .listening ? 1.05 : 1.0)
+        .animation(.spring(response: 0.4), value: flowState)
     }
 
+    // MARK: Example chips
     private var exampleChips: some View {
         VStack(spacing: 8) {
-            ForEach(["Vendí tres salteñas y dos refrescos", "Una porción de pique macho", "Dos almuerzos del día"], id: \.self) { phrase in
+            ForEach(["Vendí tres salteñas y dos refrescos",
+                     "Una porción de pique macho",
+                     "Dos almuerzos del día",
+                     "Cinco salteñas y una Coca Cola"], id: \.self) { phrase in
                 Button { simulateVoice(phrase) } label: {
                     HStack(spacing: 6) {
                         Image(systemName: "mic.circle").foregroundColor(TinkaColor.magenta)
@@ -197,13 +243,14 @@ struct VoiceView: View {
         }
     }
 
+    // MARK: Success overlay
     private var successOverlay: some View {
         ZStack {
             Color.black.opacity(0.4).ignoresSafeArea()
             VStack(spacing: 16) {
                 Image(systemName: "checkmark.circle.fill").font(.system(size: 60)).foregroundColor(TinkaColor.green)
                 Text("¡Venta registrada!").font(.tinka(22, weight: .bold)).foregroundColor(.white)
-                Text("Bs. \(parsedTotal, specifier: "%.2f") añadidos al dashboard").font(.tinka(14)).foregroundColor(.white.opacity(0.8))
+                Text("Bs. \(parsedTotal, specifier: "%.2f") añadidos al resumen").font(.tinka(14)).foregroundColor(.white.opacity(0.8))
             }
             .padding(32).background(.ultraThinMaterial).clipShape(RoundedRectangle(cornerRadius: 24))
         }
@@ -212,64 +259,42 @@ struct VoiceView: View {
 
     // MARK: Logic
     private func handleMicTap() {
-        if voiceState == .idle { startListening() }
-        else if voiceState == .listening { finishListening() }
+        if flowState == .idle { startListening() }
+        else if flowState == .listening { speech.stopListening() }
     }
-
-    private func simulateVoice(_ phrase: String) { startListening(); simulateTranscription(phrase) }
 
     private func startListening() {
         reset()
-        voiceState = .listening
-        pulseScale = 1.1
-        wavePhase = 1
-    }
-
-    private func simulateTranscription(_ phrase: String = "Vendí tres salteñas y dos refrescos") {
-        var chars = ""
-        for (i, ch) in phrase.enumerated() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.04) {
-                chars.append(ch); transcript = chars
-                if chars == phrase { finishListening() }
-            }
+        Task {
+            let granted = await speech.requestPermissions()
+            guard granted else { return }
+            flowState = .listening
+            speech.startListening()
         }
     }
 
     private func finishListening() {
-        if transcript.isEmpty { transcript = simulatedText }
-        voiceState = .processing
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { parseAndShow() }
+        flowState = .processing
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            parsedProducts = VoiceParser.parse(speech.transcript)
+            flowState = .result
+        }
     }
 
-    private func parseAndShow() {
-        parsedProducts = parseVoice(transcript)
-        voiceState = .result
-    }
-
-    private func parseVoice(_ text: String) -> [SaleProduct] {
-        let t = text.lowercased()
-        let numberWords = ["cero":0,"un":1,"una":1,"uno":1,"dos":2,"tres":3,"cuatro":4,"cinco":5,"seis":6,"siete":7,"ocho":8,"nueve":9,"diez":10]
-        var products: [SaleProduct] = []
-
-        let matches: [(keywords: [String], name: String)] = [
-            (["salteña","salteñas"], "Salteña"),
-            (["refresco","refrescos","bebida","bebidas"], "Refresco"),
-            (["almuerzo","almuerzos"], "Almuerzo"),
-            (["pique","macho"], "Pique Macho")
-        ]
-
-        for m in matches {
-            for kw in m.keywords {
-                if t.contains(kw) {
-                    let qty = numberWords.first(where: { t.contains($0.key) })?.value ?? 1
-                    if !products.contains(where: { $0.name == m.name }) {
-                        products.append(SaleProduct(name: m.name, qty: qty, price: SeedData.products[m.name] ?? 0))
-                    }
-                    break
+    private func simulateVoice(_ phrase: String) {
+        reset()
+        flowState = .listening
+        // Animate char by char for demo
+        var built = ""
+        for (i, ch) in phrase.enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.04) {
+                built.append(ch)
+                speech.transcript = built
+                if built == phrase {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { finishListening() }
                 }
             }
         }
-        return products.isEmpty ? [SaleProduct(name: "Salteña", qty: 1, price: 5)] : products
     }
 
     private func confirmSale() {
@@ -280,27 +305,76 @@ struct VoiceView: View {
     }
 
     private func reset() {
-        voiceState = .idle; transcript = ""; parsedProducts = []; pulseScale = 1.0; wavePhase = 0
+        flowState = .idle
+        speech.transcript = ""
+        parsedProducts = []
+        pulseScale = 1.0
+    }
+}
+
+// MARK: - Parser
+enum VoiceParser {
+    private static let numberWords: [(String, Int)] = [
+        ("cero", 0), ("un ", 1), ("una ", 1), ("uno", 1),
+        ("dos", 2), ("tres", 3), ("cuatro", 4), ("cinco", 5),
+        ("seis", 6), ("siete", 7), ("ocho", 8), ("nueve", 9),
+        ("diez", 10), ("once", 11), ("doce", 12)
+    ]
+
+    private static let productMap: [(keywords: [String], name: String)] = [
+        (["salteña", "salteñas"], "Salteña"),
+        (["refresco", "refrescos", "bebida", "bebidas"], "Refresco"),
+        (["almuerzo", "almuerzos", "almuerzo del día"], "Almuerzo"),
+        (["pique macho", "pique"], "Pique Macho"),
+        (["coca cola", "coca", "cola"], "Coca Cola")
+    ]
+
+    static func parse(_ text: String) -> [SaleProduct] {
+        let t = text.lowercased()
+        // Split by "y" to handle separate product mentions with separate quantities
+        let segments = t.components(separatedBy: " y ")
+        var results: [SaleProduct] = []
+
+        for segment in segments {
+            for mapping in productMap {
+                let found = mapping.keywords.contains { segment.contains($0) }
+                guard found && !results.contains(where: { $0.name == mapping.name }) else { continue }
+                let qty = detectNumber(in: segment) ?? detectNumber(in: t) ?? 1
+                let price = ProductCatalog.prices[mapping.name] ?? 5
+                results.append(SaleProduct(name: mapping.name, qty: qty, price: price))
+            }
+        }
+        return results
+    }
+
+    private static func detectNumber(in text: String) -> Int? {
+        // Try digit first
+        let words = text.components(separatedBy: .whitespaces)
+        for w in words { if let n = Int(w) { return n } }
+        // Then word
+        for (word, value) in numberWords { if text.contains(word) { return value } }
+        return nil
     }
 }
 
 // MARK: - Waveform
 struct WaveformView: View {
-    @Binding var phase: CGFloat
     @State private var animPhase: CGFloat = 0
     let bars = 24
+
     var body: some View {
         HStack(spacing: 4) {
             ForEach(0..<bars, id: \.self) { i in
                 RoundedRectangle(cornerRadius: 4)
                     .fill(LinearGradient.tinkaPrimary)
                     .frame(width: 5, height: barHeight(i))
-                    .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true).delay(Double(i) * 0.04), value: animPhase)
+                    .animation(.easeInOut(duration: 0.45).repeatForever(autoreverses: true).delay(Double(i)*0.04), value: animPhase)
             }
         }
         .frame(height: 60)
         .onAppear { animPhase = 1 }
     }
+
     private func barHeight(_ i: Int) -> CGFloat {
         guard animPhase > 0 else { return 4 }
         let base = sin(Double(i) * 0.5 + Double(animPhase) * 2) * 0.5 + 0.5

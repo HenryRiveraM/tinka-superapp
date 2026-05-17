@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum TinkaTab: Hashable {
-    case home, sales, voice, chat, wallet, profile
+    case home, sales, voice, chat, reports, profile
 }
 
 struct RootView: View {
@@ -28,7 +28,7 @@ struct RootView: View {
         case .sales:   SalesView()
         case .voice:   VoiceView()
         case .chat:    TinkaChatView()
-        case .wallet:  WalletView()
+        case .reports: ReportsView()
         case .profile: ProfileView()
         }
     }

@@ -4,12 +4,12 @@ struct TinkaTabBar: View {
     @Binding var selected: TinkaTab
 
     private let items: [(TinkaTab, String, String)] = [
-        (.home,    "house.fill",      "Inicio"),
-        (.sales,   "cart.fill",       "Ventas"),
-        (.voice,   "mic.fill",        "Voz"),
-        (.chat,    "sparkles",        "IA"),
-        (.wallet,  "creditcard.fill", "Wallet"),
-        (.profile, "person.fill",     "Perfil")
+        (.home,    "house.fill",         "Inicio"),
+        (.sales,   "cart.fill",          "Ventas"),
+        (.voice,   "mic.fill",           "Voz"),
+        (.chat,    "sparkles",           "IA"),
+        (.reports, "chart.bar.doc.horizontal", "Reportes"),
+        (.profile, "person.fill",        "Perfil")
     ]
 
     var body: some View {
@@ -34,9 +34,7 @@ struct TinkaTabBar: View {
         let isVoice = (tab == .voice)
         let isSelected = (tab == selected)
         Button {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                selected = tab
-            }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) { selected = tab }
         } label: {
             if isVoice {
                 voiceButton(isSelected: isSelected)
@@ -50,25 +48,18 @@ struct TinkaTabBar: View {
 
     private func standardButton(icon: String, label: String, isSelected: Bool) -> some View {
         VStack(spacing: 2) {
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
-            Text(label)
-                .font(.tinka(9, weight: .semibold))
+            Image(systemName: icon).font(.system(size: 16, weight: .semibold))
+            Text(label).font(.tinka(9, weight: .semibold))
         }
         .foregroundStyle(isSelected ? AnyShapeStyle(LinearGradient.tinkaPrimary) : AnyShapeStyle(TinkaColor.subtleText))
-        .padding(.vertical, 8)
-        .padding(.horizontal, 2)
+        .padding(.vertical, 8).padding(.horizontal, 2)
     }
 
     private func voiceButton(isSelected: Bool) -> some View {
         ZStack {
-            Circle()
-                .fill(LinearGradient.tinkaPrimary)
-                .frame(width: 48, height: 48)
+            Circle().fill(LinearGradient.tinkaPrimary).frame(width: 48, height: 48)
                 .shadow(color: TinkaColor.magenta.opacity(0.5), radius: 14, x: 0, y: 6)
-            Image(systemName: "mic.fill")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(.white)
+            Image(systemName: "mic.fill").font(.system(size: 18, weight: .bold)).foregroundStyle(.white)
         }
         .offset(y: -8)
         .scaleEffect(isSelected ? 1.08 : 1.0)
