@@ -1,0 +1,309 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		08A560F2206464E2E666CEEA /* HeroBalanceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A96B8A165F4E78BF720F4A67 /* HeroBalanceCard.swift */; };
+		32F114B294AFAF28EF7B2301 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C107C94DBEED66369FB79A4B /* LaunchScreen.storyboard */; };
+		3F1A7B759847D656BA987F2F /* HomeDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EC3D77C58A44F9B9F90173A /* HomeDashboardView.swift */; };
+		4EAF0E8E6350CB80D317877A /* TinkaTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44FC836039282F21A35A2243 /* TinkaTheme.swift */; };
+		51D4EB08CE4D3B2977D1AA01 /* PlaceholderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C8527C68ECB2F2956FD1E45 /* PlaceholderScreen.swift */; };
+		5318E6F41B8A6E7263FEF8B7 /* AIInsightsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8FB54C4E85E3E5D8D3E8A0C /* AIInsightsSection.swift */; };
+		6D231F6EF0E8442B1A6F322C /* QuickActionsGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E026130BB3CF0BA7E18FD8 /* QuickActionsGrid.swift */; };
+		70DEEB0CE4DE576301FD90F7 /* TinkaTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F43E2F5C1943545E6D34C494 /* TinkaTabBar.swift */; };
+		7E64D7D9BDAF003EF327C0B2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 378CE7BDFAD3BE200834E2E6 /* Assets.xcassets */; };
+		B5AC69BA0D7AD4070773308A /* HomeHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4E9A015949300902E15279 /* HomeHeaderView.swift */; };
+		C451C4B707F600372AED2D28 /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68AC5D6F6F0D8E88DD5FA3DB /* SampleData.swift */; };
+		C49D47737097022C60D36336 /* TinkaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A148217D48266BAD5A8A9C0 /* TinkaApp.swift */; };
+		C7EDB87B064BD659F723C8FF /* WeeklyTrendCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612C2C9C83BBFA562675FDBB /* WeeklyTrendCard.swift */; };
+		D827A2112CA28EB22BBAAAE2 /* TinkaScoreCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 992BBDF353627A9A7D41A991 /* TinkaScoreCard.swift */; };
+		E497046FD6F8C7C8E4FFEB66 /* KPIRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943FA8C62346285B71990D66 /* KPIRow.swift */; };
+		EA1BA37FCC538C24FE66903A /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E212E173B530F7F74E9629D3 /* RootView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1EC3D77C58A44F9B9F90173A /* HomeDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeDashboardView.swift; sourceTree = "<group>"; };
+		378CE7BDFAD3BE200834E2E6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		44FC836039282F21A35A2243 /* TinkaTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaTheme.swift; sourceTree = "<group>"; };
+		4D4E9A015949300902E15279 /* HomeHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeHeaderView.swift; sourceTree = "<group>"; };
+		5AA2F9211CC3AC79727D6FDB /* design-zone.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "design-zone.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		612C2C9C83BBFA562675FDBB /* WeeklyTrendCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyTrendCard.swift; sourceTree = "<group>"; };
+		68AC5D6F6F0D8E88DD5FA3DB /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
+		943FA8C62346285B71990D66 /* KPIRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KPIRow.swift; sourceTree = "<group>"; };
+		992BBDF353627A9A7D41A991 /* TinkaScoreCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaScoreCard.swift; sourceTree = "<group>"; };
+		9A148217D48266BAD5A8A9C0 /* TinkaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaApp.swift; sourceTree = "<group>"; };
+		9C8527C68ECB2F2956FD1E45 /* PlaceholderScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderScreen.swift; sourceTree = "<group>"; };
+		A6E026130BB3CF0BA7E18FD8 /* QuickActionsGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionsGrid.swift; sourceTree = "<group>"; };
+		A96B8A165F4E78BF720F4A67 /* HeroBalanceCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeroBalanceCard.swift; sourceTree = "<group>"; };
+		BA0713200B402CD96B31C7B3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		C635507D74FDF176C3D3D45D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		D8FB54C4E85E3E5D8D3E8A0C /* AIInsightsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIInsightsSection.swift; sourceTree = "<group>"; };
+		E212E173B530F7F74E9629D3 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		F43E2F5C1943545E6D34C494 /* TinkaTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaTabBar.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0D425725C7A3E3A66482562E /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				D8FB54C4E85E3E5D8D3E8A0C /* AIInsightsSection.swift */,
+				A96B8A165F4E78BF720F4A67 /* HeroBalanceCard.swift */,
+				1EC3D77C58A44F9B9F90173A /* HomeDashboardView.swift */,
+				4D4E9A015949300902E15279 /* HomeHeaderView.swift */,
+				943FA8C62346285B71990D66 /* KPIRow.swift */,
+				A6E026130BB3CF0BA7E18FD8 /* QuickActionsGrid.swift */,
+				992BBDF353627A9A7D41A991 /* TinkaScoreCard.swift */,
+				612C2C9C83BBFA562675FDBB /* WeeklyTrendCard.swift */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+		1305A712ED675175D736793B /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				44FC836039282F21A35A2243 /* TinkaTheme.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		188454B8C5649A04FB834C5D /* Root */ = {
+			isa = PBXGroup;
+			children = (
+				E212E173B530F7F74E9629D3 /* RootView.swift */,
+				F43E2F5C1943545E6D34C494 /* TinkaTabBar.swift */,
+			);
+			path = Root;
+			sourceTree = "<group>";
+		};
+		258D083E801ABBE6FA8170A1 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5AA2F9211CC3AC79727D6FDB /* design-zone.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		4C516681CB9D607439B96885 /* Screens */ = {
+			isa = PBXGroup;
+			children = (
+				9C8527C68ECB2F2956FD1E45 /* PlaceholderScreen.swift */,
+				0D425725C7A3E3A66482562E /* Home */,
+			);
+			path = Screens;
+			sourceTree = "<group>";
+		};
+		69A8B68452B10E4150E18D3E /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				68AC5D6F6F0D8E88DD5FA3DB /* SampleData.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		9D8DF780426BA982149A6A11 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				9A148217D48266BAD5A8A9C0 /* TinkaApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		B71B300D37AB57ED7A82E2AA = {
+			isa = PBXGroup;
+			children = (
+				DEC60392C4D86361EBAF0926 /* design-zone */,
+				258D083E801ABBE6FA8170A1 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		DEC60392C4D86361EBAF0926 /* design-zone */ = {
+			isa = PBXGroup;
+			children = (
+				378CE7BDFAD3BE200834E2E6 /* Assets.xcassets */,
+				BA0713200B402CD96B31C7B3 /* Info.plist */,
+				C107C94DBEED66369FB79A4B /* LaunchScreen.storyboard */,
+				9D8DF780426BA982149A6A11 /* App */,
+				69A8B68452B10E4150E18D3E /* Models */,
+				188454B8C5649A04FB834C5D /* Root */,
+				4C516681CB9D607439B96885 /* Screens */,
+				1305A712ED675175D736793B /* Theme */,
+			);
+			path = "design-zone";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C4E61D075B5451E9F94761D8 /* design-zone */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C26AAF021B907F4D88211B40 /* Build configuration list for PBXNativeTarget "design-zone" */;
+			buildPhases = (
+				4AD8CE43774FBBA12E8ACFC2 /* Sources */,
+				E18DB79B2417260495763FAE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "design-zone";
+			packageProductDependencies = (
+			);
+			productName = "design-zone";
+			productReference = 5AA2F9211CC3AC79727D6FDB /* design-zone.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		8FDB9358F24908C995578A1F /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+			};
+			buildConfigurationList = 9DA87AE99BFD796D0FC7FEE4 /* Build configuration list for PBXProject "design-zone" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = B71B300D37AB57ED7A82E2AA;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C4E61D075B5451E9F94761D8 /* design-zone */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		E18DB79B2417260495763FAE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7E64D7D9BDAF003EF327C0B2 /* Assets.xcassets in Resources */,
+				32F114B294AFAF28EF7B2301 /* LaunchScreen.storyboard in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		4AD8CE43774FBBA12E8ACFC2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5318E6F41B8A6E7263FEF8B7 /* AIInsightsSection.swift in Sources */,
+				08A560F2206464E2E666CEEA /* HeroBalanceCard.swift in Sources */,
+				3F1A7B759847D656BA987F2F /* HomeDashboardView.swift in Sources */,
+				B5AC69BA0D7AD4070773308A /* HomeHeaderView.swift in Sources */,
+				E497046FD6F8C7C8E4FFEB66 /* KPIRow.swift in Sources */,
+				51D4EB08CE4D3B2977D1AA01 /* PlaceholderScreen.swift in Sources */,
+				6D231F6EF0E8442B1A6F322C /* QuickActionsGrid.swift in Sources */,
+				EA1BA37FCC538C24FE66903A /* RootView.swift in Sources */,
+				C451C4B707F600372AED2D28 /* SampleData.swift in Sources */,
+				C49D47737097022C60D36336 /* TinkaApp.swift in Sources */,
+				D827A2112CA28EB22BBAAAE2 /* TinkaScoreCard.swift in Sources */,
+				70DEEB0CE4DE576301FD90F7 /* TinkaTabBar.swift in Sources */,
+				4EAF0E8E6350CB80D317877A /* TinkaTheme.swift in Sources */,
+				C7EDB87B064BD659F723C8FF /* WeeklyTrendCard.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		C107C94DBEED66369FB79A4B /* LaunchScreen.storyboard */ = {
+			isa = PBXVariantGroup;
+			children = (
+				C635507D74FDF176C3D3D45D /* Base */,
+			);
+			name = LaunchScreen.storyboard;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		3EEA8F5613D78F8BBACE83C1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				INFOPLIST_FILE = "design-zone/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.superapp.designzone;
+			};
+			name = Debug;
+		};
+		46F6213CDA6BC979C252D80E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				INFOPLIST_FILE = "design-zone/Info.plist";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.superapp.designzone;
+			};
+			name = Release;
+		};
+		718365CEE314255BA8CCD800 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CURRENT_PROJECT_VERSION = 1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_NAME = "design-zone";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		C3EDF1B80CDEEA97983BF31B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CURRENT_PROJECT_VERSION = 1;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_NAME = "design-zone";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		9DA87AE99BFD796D0FC7FEE4 /* Build configuration list for PBXProject "design-zone" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				718365CEE314255BA8CCD800 /* Debug */,
+				C3EDF1B80CDEEA97983BF31B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C26AAF021B907F4D88211B40 /* Build configuration list for PBXNativeTarget "design-zone" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3EEA8F5613D78F8BBACE83C1 /* Debug */,
+				46F6213CDA6BC979C252D80E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 8FDB9358F24908C995578A1F /* Project object */;
+}
