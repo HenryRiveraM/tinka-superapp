@@ -86,14 +86,15 @@ struct ProductCombo: Identifiable, Codable {
     var finalPrice: Double
     var emoji: String
     var isActive: Bool
+    var aliases: [String]
 
-    init(id: UUID = UUID(), name: String, items: [ComboItem], finalPrice: Double, emoji: String = "🎁", isActive: Bool = true) {
-        self.id = id; self.name = name; self.items = items; self.finalPrice = finalPrice; self.emoji = emoji; self.isActive = isActive
+    init(id: UUID = UUID(), name: String, items: [ComboItem], finalPrice: Double,
+         emoji: String = "🎁", isActive: Bool = true, aliases: [String] = []) {
+        self.id = id; self.name = name; self.items = items; self.finalPrice = finalPrice
+        self.emoji = emoji; self.isActive = isActive; self.aliases = aliases
     }
 
-    var regularPrice: Double {
-        items.reduce(0) { $0 + $1.totalPrice }
-    }
+    var regularPrice: Double { items.reduce(0) { $0 + $1.totalPrice } }
     var saving: Double { regularPrice - finalPrice }
 }
 
@@ -142,27 +143,53 @@ enum ProductCatalog {
 class AppState: ObservableObject {
     static let shared = AppState()
 
-    @Published var sales: [SaleItem] = [] {
-        didSet { persistSales() }
-    }
-    @Published var chatMessages: [ChatMessage] = [] {
-        didSet { persistChat() }
-    }
-    @Published var catalogProducts: [CatalogProduct] = [] {
-        didSet { persistCatalog() }
-    }
-    @Published var combos: [ProductCombo] = [] {
-        didSet { persistCombos() }
-    }
+    @Published var sales: [SaleItem] = []
+    @Published var chatMessages: [ChatMessage] = []
+    @Published var catalogProducts: [CatalogProduct] = []
+    @Published var combos: [ProductCombo] = []
+    @Published var isLoadingData = false
 
     init() {
-        loadSales()
-        loadChat()
-        loadCatalog()
-        loadCombos()
-        if sales.isEmpty { sales = SeedData.defaultSales }
-        if catalogProducts.isEmpty { catalogProducts = SeedData.defaultProducts }
-        if combos.isEmpty { combos = SeedData.defaultCombos }
+        loadLocal()
+    }
+
+    // MARK: - Load from Supabase (call after login)
+    func loadFromSupabase() async {
+        await MainActor.run { isLoadingData = true }
+        let svc = TinkaDataService.shared
+        async let prods = (try? svc.fetchProducts()) ?? []
+        async let combosVal = (try? svc.fetchCombos()) ?? []
+        async let salesVal = (try? svc.fetchSales()) ?? []
+        async let chat = (try? svc.fetchChatMessages()) ?? []
+        let (p, c, s, ch) = await (prods, combosVal, salesVal, chat)
+        await MainActor.run {
+            if !p.isEmpty { catalogProducts = p }
+            if !c.isEmpty { combos = c }
+            sales = s
+            if !ch.isEmpty { chatMessages = ch }
+            isLoadingData = false
+        }
+    }
+
+    // MARK: - Clear on sign out
+    func clearAll() {
+        sales = []; chatMessages = []; catalogProducts = []; combos = []
+        UserDefaults.standard.removeObject(forKey: "tinka_sales_v2")
+        UserDefaults.standard.removeObject(forKey: "tinka_chat_v2")
+        UserDefaults.standard.removeObject(forKey: "tinka_catalog_v1")
+        UserDefaults.standard.removeObject(forKey: "tinka_combos_v1")
+    }
+
+    // MARK: - Local fallback
+    private func loadLocal() {
+        if let d = UserDefaults.standard.data(forKey: "tinka_catalog_v1"),
+           let v = try? JSONDecoder().decode([CatalogProduct].self, from: d) { catalogProducts = v }
+        if let d = UserDefaults.standard.data(forKey: "tinka_combos_v1"),
+           let v = try? JSONDecoder().decode([ProductCombo].self, from: d) { combos = v }
+        if let d = UserDefaults.standard.data(forKey: "tinka_sales_v2"),
+           let v = try? JSONDecoder().decode([SaleItem].self, from: d) { sales = v }
+        if let d = UserDefaults.standard.data(forKey: "tinka_chat_v2"),
+           let v = try? JSONDecoder().decode([ChatMessage].self, from: d) { chatMessages = v }
     }
 
     // MARK: - Computed properties
@@ -277,10 +304,14 @@ Contexto del negocio de Doña María:
 
     func addSale(_ sale: SaleItem) {
         withAnimation(.spring(response: 0.4)) { sales.insert(sale, at: 0) }
+        persistSales()
+        Task { try? await TinkaDataService.shared.insertSale(sale) }
     }
 
     func deleteSale(_ id: UUID) {
         withAnimation { sales.removeAll { $0.id == id } }
+        persistSales()
+        Task { try? await TinkaDataService.shared.deleteSale(id: id) }
     }
 
     func salesForPeriod(_ period: AppPeriod) -> [SaleItem] {
@@ -300,82 +331,78 @@ Contexto del negocio de Doña María:
 
     func addProduct(_ product: CatalogProduct) {
         withAnimation { catalogProducts.append(product) }
+        persistCatalog()
+        Task { try? await TinkaDataService.shared.upsertProduct(product) }
     }
 
     func updateProduct(_ product: CatalogProduct) {
         if let idx = catalogProducts.firstIndex(where: { $0.id == product.id }) {
             withAnimation { catalogProducts[idx] = product }
         }
+        persistCatalog()
+        Task { try? await TinkaDataService.shared.upsertProduct(product) }
     }
 
     func deleteProduct(_ id: UUID) {
         withAnimation { catalogProducts.removeAll { $0.id == id } }
+        persistCatalog()
+        Task { try? await TinkaDataService.shared.deleteProduct(id: id) }
     }
 
     func toggleProduct(_ id: UUID) {
         if let idx = catalogProducts.firstIndex(where: { $0.id == id }) {
             withAnimation { catalogProducts[idx].isActive.toggle() }
+            let updated = catalogProducts[idx]
+            persistCatalog()
+            Task { try? await TinkaDataService.shared.upsertProduct(updated) }
         }
     }
 
     func addCombo(_ combo: ProductCombo) {
         withAnimation { combos.append(combo) }
+        persistCombos()
+        Task { try? await TinkaDataService.shared.upsertCombo(combo) }
     }
 
     func updateCombo(_ combo: ProductCombo) {
         if let idx = combos.firstIndex(where: { $0.id == combo.id }) {
             withAnimation { combos[idx] = combo }
         }
+        persistCombos()
+        Task { try? await TinkaDataService.shared.upsertCombo(combo) }
     }
 
     func deleteCombo(_ id: UUID) {
         withAnimation { combos.removeAll { $0.id == id } }
+        persistCombos()
+        Task { try? await TinkaDataService.shared.deleteCombo(id: id) }
     }
 
-    // MARK: - Persistence
+    func addChatMessage(_ msg: ChatMessage) {
+        chatMessages.append(msg)
+        persistChat()
+        Task { try? await TinkaDataService.shared.insertChatMessage(msg) }
+    }
 
-    private func persistSales() {
+    // MARK: - Persistence (local fallback)
+    func persistSales() {
         guard let data = try? JSONEncoder().encode(sales) else { return }
         UserDefaults.standard.set(data, forKey: "tinka_sales_v2")
     }
 
-    private func loadSales() {
-        guard let data = UserDefaults.standard.data(forKey: "tinka_sales_v2"),
-              let decoded = try? JSONDecoder().decode([SaleItem].self, from: data) else { return }
-        sales = decoded
-    }
-
-    private func persistChat() {
+    func persistChat() {
         guard let data = try? JSONEncoder().encode(chatMessages) else { return }
         UserDefaults.standard.set(data, forKey: "tinka_chat_v2")
     }
 
-    private func loadChat() {
-        guard let data = UserDefaults.standard.data(forKey: "tinka_chat_v2"),
-              let decoded = try? JSONDecoder().decode([ChatMessage].self, from: data) else { return }
-        chatMessages = decoded
-    }
-
-    private func persistCatalog() {
+    func persistCatalog() {
         guard let data = try? JSONEncoder().encode(catalogProducts) else { return }
         UserDefaults.standard.set(data, forKey: "tinka_catalog_v1")
     }
 
-    private func loadCatalog() {
-        guard let data = UserDefaults.standard.data(forKey: "tinka_catalog_v1"),
-              let decoded = try? JSONDecoder().decode([CatalogProduct].self, from: data) else { return }
-        catalogProducts = decoded
-    }
-
-    private func persistCombos() {
+    func persistCombos() {
         guard let data = try? JSONEncoder().encode(combos) else { return }
         UserDefaults.standard.set(data, forKey: "tinka_combos_v1")
-    }
-
-    private func loadCombos() {
-        guard let data = UserDefaults.standard.data(forKey: "tinka_combos_v1"),
-              let decoded = try? JSONDecoder().decode([ProductCombo].self, from: data) else { return }
-        combos = decoded
     }
 }
 

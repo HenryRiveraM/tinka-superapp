@@ -2,9 +2,16 @@ import SwiftUI
 
 struct ProfileView: View {
     @EnvironmentObject var state: AppState
-    @State private var notificationsOn = true
-    @State private var biometricOn = true
+    @ObservedObject private var auth = AuthService.shared
+    @State private var profile: DBBusinessProfile? = nil
+    @State private var showEditSheet = false
     @State private var showLogoutAlert = false
+    @State private var isLoadingProfile = false
+
+    var ownerInitial: String {
+        let name = profile?.ownerName ?? auth.userEmail ?? "?"
+        return String(name.prefix(1)).uppercased()
+    }
 
     var body: some View {
         ZStack {
@@ -14,72 +21,97 @@ struct ProfileView: View {
                     profileHeader
                     businessCard
                     statsRow
-                    settingsSection
-                    securitySection
-                    supportSection
+                    accountSection
                     logoutButton
                     Color.clear.frame(height: 110)
                 }
                 .padding(.horizontal, 18).padding(.top, 8)
             }
         }
+        .task { await loadProfile() }
+        .sheet(isPresented: $showEditSheet, onDismiss: { Task { await loadProfile() } }) {
+            EditProfileSheet(profile: $profile)
+        }
         .alert("Cerrar sesión", isPresented: $showLogoutAlert) {
             Button("Cancelar", role: .cancel) {}
-            Button("Cerrar sesión", role: .destructive) {}
+            Button("Cerrar sesión", role: .destructive) { doSignOut() }
         } message: { Text("¿Estás segura que deseas cerrar sesión?") }
     }
 
+    // MARK: - Background
     private var background: some View {
         ZStack {
             LinearGradient.tinkaSoftBackground.ignoresSafeArea()
-            Circle().fill(TinkaColor.magenta.opacity(0.12)).frame(width: 280).blur(radius: 80).offset(x: -120, y: -220)
+            Circle().fill(TinkaColor.magenta.opacity(0.1)).frame(width: 280).blur(radius: 80).offset(x: -120, y: -220)
         }
     }
 
+    // MARK: - Header
     private var profileHeader: some View {
         VStack(spacing: 16) {
             ZStack {
                 Circle().fill(LinearGradient.tinkaPrimary).frame(width: 88, height: 88)
                     .shadow(color: TinkaColor.magenta.opacity(0.35), radius: 16, y: 6)
-                Text("M").font(.tinka(36, weight: .bold)).foregroundColor(.white)
+                Text(ownerInitial).font(.tinka(36, weight: .bold)).foregroundColor(.white)
                 Circle().fill(TinkaColor.green).frame(width: 22, height: 22)
                     .overlay(Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundColor(.white))
                     .offset(x: 30, y: 30)
             }
             VStack(spacing: 4) {
-                Text("Doña María García").font(.tinka(22, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
-                Text("Emprendedora · Cochabamba, Bolivia").font(.tinka(13)).foregroundColor(TinkaColor.subtleText)
-                HStack(spacing: 6) {
-                    Image(systemName: "phone.fill").font(.system(size: 11)).foregroundColor(TinkaColor.deepBlue)
-                    Text("+591 70 123 456").font(.tinka(13)).foregroundColor(TinkaColor.deepBlue)
+                Text(profile?.ownerName ?? auth.userEmail ?? "—")
+                    .font(.tinka(22, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
+                Text(auth.userEmail ?? "").font(.tinka(13)).foregroundColor(TinkaColor.subtleText)
+                if let city = profile?.city, !city.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "mappin.circle.fill").font(.system(size: 12)).foregroundColor(TinkaColor.deepBlue)
+                        Text(city).font(.tinka(13)).foregroundColor(TinkaColor.deepBlue)
+                    }
                 }
+            }
+            Button { showEditSheet = true } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "pencil").font(.system(size: 13))
+                    Text("Editar perfil").font(.tinka(13, weight: .semibold))
+                }
+                .foregroundColor(TinkaColor.deepBlue)
+                .padding(.horizontal, 18).padding(.vertical, 8)
+                .background(TinkaColor.deepBlue.opacity(0.1))
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(TinkaColor.deepBlue.opacity(0.25)))
             }
         }
         .padding(.vertical, 8)
     }
 
+    // MARK: - Business card
     private var businessCard: some View {
         VStack(spacing: 0) {
-            profileRow(icon: "storefront.fill", color: TinkaColor.deepBlue, label: "Negocio", value: "Salteñas Doña María")
+            infoRow("storefront.fill", TinkaColor.deepBlue, "Negocio",
+                    profile?.businessName.isEmpty == false ? profile!.businessName : "—")
             Divider().padding(.horizontal, 16)
-            profileRow(icon: "fork.knife", color: TinkaColor.magenta, label: "Categoría", value: "Comida / Restaurante")
+            infoRow("tag.fill", TinkaColor.magenta, "Tipo",
+                    profile?.businessType.isEmpty == false ? profile!.businessType : "—")
             Divider().padding(.horizontal, 16)
-            profileRow(icon: "mappin.circle.fill", color: TinkaColor.royalPurple, label: "Ciudad", value: "Cochabamba")
-            Divider().padding(.horizontal, 16)
-            profileRow(icon: "calendar", color: TinkaColor.green, label: "Miembro desde", value: "Enero 2024")
+            infoRow("mappin.circle.fill", TinkaColor.royalPurple, "Ciudad",
+                    profile?.city.isEmpty == false ? profile!.city : "—")
+            if let phone = profile?.phone, !phone.isEmpty {
+                Divider().padding(.horizontal, 16)
+                infoRow("phone.fill", TinkaColor.green, "Teléfono", phone)
+            }
         }
         .glassCard()
     }
 
+    // MARK: - Stats
     private var statsRow: some View {
         HStack(spacing: 12) {
-            statTile(value: "\(state.tinkaScore)", label: "Tinka Score", color: TinkaColor.magenta)
-            statTile(value: "Bs. \(Int(state.weekSales))", label: "Esta semana", color: TinkaColor.deepBlue)
-            statTile(value: "\(state.sales.count)", label: "Ventas totales", color: TinkaColor.royalPurple)
+            statTile("\(state.tinkaScore)", "Tinka Score", TinkaColor.magenta)
+            statTile("Bs. \(Int(state.weekSales))", "Esta semana", TinkaColor.deepBlue)
+            statTile("\(state.sales.count)", "Ventas totales", TinkaColor.royalPurple)
         }
     }
 
-    private func statTile(value: String, label: String, color: Color) -> some View {
+    private func statTile(_ value: String, _ label: String, _ color: Color) -> some View {
         VStack(spacing: 4) {
             Text(value).font(.tinka(18, weight: .bold)).foregroundColor(color)
             Text(label).font(.tinka(10)).foregroundColor(TinkaColor.subtleText).multilineTextAlignment(.center)
@@ -87,60 +119,39 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity).padding(14).glassCard(cornerRadius: 16)
     }
 
-    private var settingsSection: some View {
+    // MARK: - Account section
+    private var accountSection: some View {
         VStack(spacing: 0) {
-            sectionHeader("Configuración")
-            toggleRow(icon: "bell.fill", color: TinkaColor.deepBlue, label: "Notificaciones push", binding: $notificationsOn)
+            Text("Cuenta").font(.tinka(11, weight: .semibold)).foregroundColor(TinkaColor.subtleText)
+                .textCase(.uppercase).frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16).padding(.vertical, 10)
+            infoRow("envelope.fill", TinkaColor.deepBlue, "Correo", auth.userEmail ?? "—", chevron: false)
             Divider().padding(.horizontal, 16)
-            profileRow(icon: "globe", color: TinkaColor.royalPurple, label: "Idioma", value: "Español")
+            infoRow("shield.fill", TinkaColor.royalPurple, "Seguridad", "Datos protegidos con RLS", chevron: false)
             Divider().padding(.horizontal, 16)
-            profileRow(icon: "paintpalette.fill", color: TinkaColor.magenta, label: "Tema", value: "Claro")
+            infoRow("info.circle.fill", TinkaColor.subtleText, "Versión", "1.0.0 Demo", chevron: false)
         }
         .glassCard()
     }
 
-    private var securitySection: some View {
-        VStack(spacing: 0) {
-            sectionHeader("Seguridad")
-            toggleRow(icon: "faceid", color: TinkaColor.green, label: "Face ID / Touch ID", binding: $biometricOn)
-            Divider().padding(.horizontal, 16)
-            profileRow(icon: "lock.fill", color: TinkaColor.deepBlue, label: "Cambiar PIN", value: "••••")
-            Divider().padding(.horizontal, 16)
-            profileRow(icon: "shield.fill", color: TinkaColor.royalPurple, label: "Privacidad de datos", value: "Protegidos")
-        }
-        .glassCard()
-    }
-
-    private var supportSection: some View {
-        VStack(spacing: 0) {
-            sectionHeader("Soporte")
-            profileRow(icon: "questionmark.circle.fill", color: TinkaColor.deepBlue, label: "Centro de ayuda", value: "")
-            Divider().padding(.horizontal, 16)
-            profileRow(icon: "star.fill", color: TinkaColor.yellow, label: "Calificar la app", value: "")
-            Divider().padding(.horizontal, 16)
-            profileRow(icon: "info.circle.fill", color: TinkaColor.subtleText, label: "Versión", value: "1.0.0 Beta")
-        }
-        .glassCard()
-    }
-
+    // MARK: - Logout
     private var logoutButton: some View {
         Button { showLogoutAlert = true } label: {
             HStack {
                 Image(systemName: "rectangle.portrait.and.arrow.right").font(.system(size: 16))
                 Text("Cerrar sesión")
             }
-            .font(.tinka(15, weight: .semibold)).foregroundColor(TinkaColor.red).frame(maxWidth: .infinity).padding(16)
-            .background(TinkaColor.red.opacity(0.08)).clipShape(RoundedRectangle(cornerRadius: 16))
+            .font(.tinka(15, weight: .semibold)).foregroundColor(TinkaColor.red)
+            .frame(maxWidth: .infinity).padding(16)
+            .background(TinkaColor.red.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(TinkaColor.red.opacity(0.2)))
         }
     }
 
-    private func sectionHeader(_ title: String) -> some View {
-        Text(title).font(.tinka(11, weight: .semibold)).foregroundColor(TinkaColor.subtleText).textCase(.uppercase)
-            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.vertical, 10)
-    }
-
-    private func profileRow(icon: String, color: Color, label: String, value: String) -> some View {
+    // MARK: - Helpers
+    private func infoRow(_ icon: String, _ color: Color, _ label: String,
+                          _ value: String, chevron: Bool = true) -> some View {
         HStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 8).fill(color.opacity(0.12)).frame(width: 34, height: 34)
@@ -148,23 +159,136 @@ struct ProfileView: View {
             }
             Text(label).font(.tinka(14)).foregroundColor(TinkaColor.darkNavy)
             Spacer()
-            if !value.isEmpty { Text(value).font(.tinka(13)).foregroundColor(TinkaColor.subtleText) }
-            Image(systemName: "chevron.right").font(.system(size: 11)).foregroundColor(TinkaColor.subtleText.opacity(0.5))
+            Text(value).font(.tinka(13)).foregroundColor(TinkaColor.subtleText).lineLimit(1)
+            if chevron {
+                Image(systemName: "chevron.right").font(.system(size: 11)).foregroundColor(TinkaColor.subtleText.opacity(0.5))
+            }
         }
         .padding(.horizontal, 16).padding(.vertical, 12)
     }
 
-    private func toggleRow(icon: String, color: Color, label: String, binding: Binding<Bool>) -> some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8).fill(color.opacity(0.12)).frame(width: 34, height: 34)
-                Image(systemName: icon).font(.system(size: 14)).foregroundColor(color)
-            }
-            Text(label).font(.tinka(14)).foregroundColor(TinkaColor.darkNavy)
-            Spacer()
-            Toggle("", isOn: binding).tint(TinkaColor.deepBlue).labelsHidden()
+    private func loadProfile() async {
+        isLoadingProfile = true
+        profile = try? await TinkaDataService.shared.fetchProfile()
+        isLoadingProfile = false
+    }
+
+    private func doSignOut() {
+        Task {
+            try? await auth.signOut()
+            AppState.shared.clearAll()
         }
-        .padding(.horizontal, 16).padding(.vertical, 12)
+    }
+}
+
+// MARK: - Edit Profile Sheet
+struct EditProfileSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var profile: DBBusinessProfile?
+    @ObservedObject private var auth = AuthService.shared
+
+    @State private var ownerName = ""
+    @State private var businessName = ""
+    @State private var businessType = "Comida"
+    @State private var city = ""
+    @State private var phone = ""
+    @State private var isSaving = false
+    @State private var error = ""
+
+    private let businessTypes = ["Comida", "Bebidas", "Panadería", "Mercado", "Ropa",
+                                  "Tecnología", "Servicio", "Transporte", "Otro"]
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                LinearGradient.tinkaSoftBackground.ignoresSafeArea()
+                ScrollView {
+                    VStack(spacing: 18) {
+                        editField("Nombre completo", $ownerName)
+                        editField("Nombre del negocio", $businessName)
+                        editField("Ciudad", $city)
+                        editField("Teléfono", $phone, keyboard: .phonePad)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Tipo de negocio").font(.tinka(13, weight: .semibold))
+                                .foregroundColor(TinkaColor.subtleText)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(businessTypes, id: \.self) { t in
+                                        Button { businessType = t } label: {
+                                            Text(t).font(.tinka(13, weight: businessType == t ? .bold : .medium))
+                                                .foregroundColor(businessType == t ? .white : TinkaColor.darkNavy)
+                                                .padding(.horizontal, 14).padding(.vertical, 8)
+                                                .background(businessType == t
+                                                    ? AnyShapeStyle(LinearGradient.tinkaPrimary)
+                                                    : AnyShapeStyle(Color.white.opacity(0.8)))
+                                                .clipShape(Capsule())
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if !error.isEmpty {
+                            Text(error).font(.tinka(13)).foregroundColor(TinkaColor.red)
+                        }
+                    }
+                    .padding(20)
+                }
+            }
+            .navigationTitle("Editar Perfil")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancelar") { dismiss() }.foregroundColor(TinkaColor.subtleText)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(isSaving ? "Guardando..." : "Guardar") { save() }
+                        .font(.tinka(15, weight: .bold))
+                        .foregroundStyle(AnyShapeStyle(LinearGradient.tinkaPrimary))
+                        .disabled(isSaving)
+                }
+            }
+        }
+        .onAppear {
+            if let p = profile {
+                ownerName = p.ownerName; businessName = p.businessName
+                businessType = p.businessType.isEmpty ? "Comida" : p.businessType
+                city = p.city; phone = p.phone
+            }
+        }
+    }
+
+    private func editField(_ label: String, _ binding: Binding<String>,
+                            keyboard: UIKeyboardType = .default) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label).font(.tinka(13, weight: .semibold)).foregroundColor(TinkaColor.subtleText)
+            TextField(label, text: binding)
+                .font(.tinka(15)).foregroundColor(TinkaColor.darkNavy)
+                .keyboardType(keyboard)
+                .padding(14)
+                .background(Color.white.opacity(0.9))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(TinkaColor.cardStroke))
+        }
+    }
+
+    private func save() {
+        guard let uid = auth.userId else { return }
+        isSaving = true; error = ""
+        let updated = DBBusinessProfile(
+            id: profile?.id ?? UUID(), userId: uid,
+            ownerName: ownerName, businessName: businessName,
+            businessType: businessType, city: city, phone: phone, createdAt: nil
+        )
+        Task {
+            do {
+                try await TinkaDataService.shared.upsertProfile(updated)
+                await MainActor.run { profile = updated; isSaving = false; dismiss() }
+            } catch {
+                await MainActor.run { self.error = "Error al guardar."; isSaving = false }
+            }
+        }
     }
 }
 

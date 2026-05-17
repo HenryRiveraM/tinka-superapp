@@ -39,12 +39,13 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleIconName: AppIcon
         ITSAppUsesNonExemptEncryption: false
-        NSSpeechRecognitionUsageDescription: "Tinka necesita reconocimiento de voz para registrar tus ventas hablando."
+        NSSpeechRecognitionUsageDescription: "Tinka necesita reconocimiento de voz para
+          registrar tus ventas hablando."
         NSMicrophoneUsageDescription: "Tinka necesita el micrófono para escuchar tus ventas por voz."
         LSRequiresIPhoneOS: true
         UIApplicationSupportsIndirectInputEvents: true
         UILaunchStoryboardName: LaunchScreen
-        UIRequiredDeviceCapabilities: [arm64]
+        UIRequiredDeviceCapabilities: [ arm64 ]
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft
@@ -54,6 +55,9 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
+    dependencies:
+      - package: supabase-swift
+        product: Supabase
 
 schemes:
   design-zone:
@@ -64,3 +68,7 @@ schemes:
       config: Debug
     archive:
       config: Release
+packages:
+  supabase-swift:
+    url: https://github.com/supabase/supabase-swift
+    branch: main

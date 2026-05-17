@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		08A560F2206464E2E666CEEA /* HeroBalanceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A96B8A165F4E78BF720F4A67 /* HeroBalanceCard.swift */; };
 		09EF9595903FCCEA32C40804 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F70752F6C0ACA19174E34E2 /* ProfileView.swift */; };
+		16815AFE217B045B39508FAB /* SupabaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36124844C2C6859DDB81B6CE /* SupabaseClient.swift */; };
 		200494EFA28125E73034ED25 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E644DC0FFDF6D36B8AF8463D /* AppState.swift */; };
 		32F114B294AFAF28EF7B2301 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = C107C94DBEED66369FB79A4B /* LaunchScreen.storyboard */; };
 		3B1C7DF49EED93C1947F7FEF /* SalesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63F868B6005BEEB08EC83575 /* SalesView.swift */; };
@@ -16,18 +17,22 @@
 		3F1A7B759847D656BA987F2F /* HomeDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EC3D77C58A44F9B9F90173A /* HomeDashboardView.swift */; };
 		41CB5CD8B30404DB9587AE99 /* TinkaChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ACEB3234070AE003E6BF4B2 /* TinkaChatView.swift */; };
 		4EAF0E8E6350CB80D317877A /* TinkaTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44FC836039282F21A35A2243 /* TinkaTheme.swift */; };
+		507686601ABBBA420F591111 /* RegisterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6309788E063A33770474862C /* RegisterView.swift */; };
 		51D4EB08CE4D3B2977D1AA01 /* PlaceholderScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C8527C68ECB2F2956FD1E45 /* PlaceholderScreen.swift */; };
 		5318E6F41B8A6E7263FEF8B7 /* AIInsightsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8FB54C4E85E3E5D8D3E8A0C /* AIInsightsSection.swift */; };
+		5347036B502551219721A68F /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 6390DF9378D1652319BDA7A9 /* Supabase */; };
 		548E5AEAA24D67E919AEC597 /* VoiceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D50D5D3D55D2E9082E9F47B6 /* VoiceView.swift */; };
 		6540DC347482301A8AA79146 /* GeminiService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D905B7F9B111D9FFB42893A1 /* GeminiService.swift */; };
 		6D231F6EF0E8442B1A6F322C /* QuickActionsGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6E026130BB3CF0BA7E18FD8 /* QuickActionsGrid.swift */; };
 		70DEEB0CE4DE576301FD90F7 /* TinkaTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F43E2F5C1943545E6D34C494 /* TinkaTabBar.swift */; };
+		7788C94043D28C9214282A35 /* TinkaDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44E58AF048F6A76C10934372 /* TinkaDataService.swift */; };
 		7E64D7D9BDAF003EF327C0B2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 378CE7BDFAD3BE200834E2E6 /* Assets.xcassets */; };
 		8AB90CD178E63920036FD9F3 /* ProductFormSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922DD9B63F8E4C1A60999013 /* ProductFormSheet.swift */; };
 		926BC830C75B6F6CAE1CEB9E /* AddSaleSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D24697E7DD172E9DB23C9B3D /* AddSaleSheet.swift */; };
 		B5AC69BA0D7AD4070773308A /* HomeHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D4E9A015949300902E15279 /* HomeHeaderView.swift */; };
 		C451C4B707F600372AED2D28 /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68AC5D6F6F0D8E88DD5FA3DB /* SampleData.swift */; };
 		C49D47737097022C60D36336 /* TinkaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A148217D48266BAD5A8A9C0 /* TinkaApp.swift */; };
+		C7A1CB8AF77FE18E607EE959 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3093B07A4FAE423A91A3532F /* AuthService.swift */; };
 		C7EDB87B064BD659F723C8FF /* WeeklyTrendCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612C2C9C83BBFA562675FDBB /* WeeklyTrendCard.swift */; };
 		C8CBFA421205A43A219870D2 /* VoiceParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41A33DCA06578DCB829ED9E9 /* VoiceParser.swift */; };
 		D3C2D72DD613C63415198E53 /* ReportsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E195C77BF82CBCD88512A52A /* ReportsView.swift */; };
@@ -36,18 +41,23 @@
 		E497046FD6F8C7C8E4FFEB66 /* KPIRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 943FA8C62346285B71990D66 /* KPIRow.swift */; };
 		EA1BA37FCC538C24FE66903A /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E212E173B530F7F74E9629D3 /* RootView.swift */; };
 		EECC2621DFE173ACA0C4580F /* ProductCatalogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B73627E8ACB9B5B38FD9E862 /* ProductCatalogView.swift */; };
+		FED2458F2F09B9B4746BCB6B /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C19E5BE6D3DEE95D29CF93D9 /* LoginView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		00735E9CB362F2A29997ACC2 /* ComboFormSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComboFormSheet.swift; sourceTree = "<group>"; };
 		1ACEB3234070AE003E6BF4B2 /* TinkaChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaChatView.swift; sourceTree = "<group>"; };
 		1EC3D77C58A44F9B9F90173A /* HomeDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeDashboardView.swift; sourceTree = "<group>"; };
+		3093B07A4FAE423A91A3532F /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
+		36124844C2C6859DDB81B6CE /* SupabaseClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseClient.swift; sourceTree = "<group>"; };
 		378CE7BDFAD3BE200834E2E6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		41A33DCA06578DCB829ED9E9 /* VoiceParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceParser.swift; sourceTree = "<group>"; };
+		44E58AF048F6A76C10934372 /* TinkaDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaDataService.swift; sourceTree = "<group>"; };
 		44FC836039282F21A35A2243 /* TinkaTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaTheme.swift; sourceTree = "<group>"; };
 		4D4E9A015949300902E15279 /* HomeHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeHeaderView.swift; sourceTree = "<group>"; };
 		5AA2F9211CC3AC79727D6FDB /* design-zone.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "design-zone.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		612C2C9C83BBFA562675FDBB /* WeeklyTrendCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyTrendCard.swift; sourceTree = "<group>"; };
+		6309788E063A33770474862C /* RegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterView.swift; sourceTree = "<group>"; };
 		63F868B6005BEEB08EC83575 /* SalesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SalesView.swift; sourceTree = "<group>"; };
 		68AC5D6F6F0D8E88DD5FA3DB /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
 		7F70752F6C0ACA19174E34E2 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
@@ -61,6 +71,7 @@
 		A96B8A165F4E78BF720F4A67 /* HeroBalanceCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeroBalanceCard.swift; sourceTree = "<group>"; };
 		B73627E8ACB9B5B38FD9E862 /* ProductCatalogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductCatalogView.swift; sourceTree = "<group>"; };
 		BA0713200B402CD96B31C7B3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		C19E5BE6D3DEE95D29CF93D9 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		C635507D74FDF176C3D3D45D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		D24697E7DD172E9DB23C9B3D /* AddSaleSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddSaleSheet.swift; sourceTree = "<group>"; };
 		D50D5D3D55D2E9082E9F47B6 /* VoiceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceView.swift; sourceTree = "<group>"; };
@@ -71,6 +82,17 @@
 		E644DC0FFDF6D36B8AF8463D /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		F43E2F5C1943545E6D34C494 /* TinkaTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaTabBar.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		09CD0EC08D7EC988C41F47F9 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5347036B502551219721A68F /* Supabase in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		0D425725C7A3E3A66482562E /* Home */ = {
@@ -96,6 +118,15 @@
 			path = Theme;
 			sourceTree = "<group>";
 		};
+		15825E913E0EC0923AD50D4E /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				C19E5BE6D3DEE95D29CF93D9 /* LoginView.swift */,
+				6309788E063A33770474862C /* RegisterView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
 		188454B8C5649A04FB834C5D /* Root */ = {
 			isa = PBXGroup;
 			children = (
@@ -117,6 +148,7 @@
 			isa = PBXGroup;
 			children = (
 				9C8527C68ECB2F2956FD1E45 /* PlaceholderScreen.swift */,
+				15825E913E0EC0923AD50D4E /* Auth */,
 				73FE5384B6C225BA838EA452 /* Chat */,
 				0D425725C7A3E3A66482562E /* Home */,
 				AC4D8D3F2A4B8C5A6D923F9C /* Products */,
@@ -180,6 +212,16 @@
 			);
 			sourceTree = "<group>";
 		};
+		DDE0357E1C216EB4684302CE /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				3093B07A4FAE423A91A3532F /* AuthService.swift */,
+				36124844C2C6859DDB81B6CE /* SupabaseClient.swift */,
+				44E58AF048F6A76C10934372 /* TinkaDataService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
 		DEC60392C4D86361EBAF0926 /* design-zone */ = {
 			isa = PBXGroup;
 			children = (
@@ -190,6 +232,7 @@
 				69A8B68452B10E4150E18D3E /* Models */,
 				188454B8C5649A04FB834C5D /* Root */,
 				4C516681CB9D607439B96885 /* Screens */,
+				DDE0357E1C216EB4684302CE /* Services */,
 				1305A712ED675175D736793B /* Theme */,
 			);
 			path = "design-zone";
@@ -231,6 +274,7 @@
 			buildPhases = (
 				4AD8CE43774FBBA12E8ACFC2 /* Sources */,
 				E18DB79B2417260495763FAE /* Resources */,
+				09CD0EC08D7EC988C41F47F9 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -238,6 +282,7 @@
 			);
 			name = "design-zone";
 			packageProductDependencies = (
+				6390DF9378D1652319BDA7A9 /* Supabase */,
 			);
 			productName = "design-zone";
 			productReference = 5AA2F9211CC3AC79727D6FDB /* design-zone.app */;
@@ -262,6 +307,9 @@
 			);
 			mainGroup = B71B300D37AB57ED7A82E2AA;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5C344C9F0054F40DFB131C46 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
@@ -291,24 +339,29 @@
 				5318E6F41B8A6E7263FEF8B7 /* AIInsightsSection.swift in Sources */,
 				926BC830C75B6F6CAE1CEB9E /* AddSaleSheet.swift in Sources */,
 				200494EFA28125E73034ED25 /* AppState.swift in Sources */,
+				C7A1CB8AF77FE18E607EE959 /* AuthService.swift in Sources */,
 				3E8FAADE9881928CF59186AA /* ComboFormSheet.swift in Sources */,
 				6540DC347482301A8AA79146 /* GeminiService.swift in Sources */,
 				08A560F2206464E2E666CEEA /* HeroBalanceCard.swift in Sources */,
 				3F1A7B759847D656BA987F2F /* HomeDashboardView.swift in Sources */,
 				B5AC69BA0D7AD4070773308A /* HomeHeaderView.swift in Sources */,
 				E497046FD6F8C7C8E4FFEB66 /* KPIRow.swift in Sources */,
+				FED2458F2F09B9B4746BCB6B /* LoginView.swift in Sources */,
 				51D4EB08CE4D3B2977D1AA01 /* PlaceholderScreen.swift in Sources */,
 				EECC2621DFE173ACA0C4580F /* ProductCatalogView.swift in Sources */,
 				8AB90CD178E63920036FD9F3 /* ProductFormSheet.swift in Sources */,
 				09EF9595903FCCEA32C40804 /* ProfileView.swift in Sources */,
 				6D231F6EF0E8442B1A6F322C /* QuickActionsGrid.swift in Sources */,
+				507686601ABBBA420F591111 /* RegisterView.swift in Sources */,
 				D3C2D72DD613C63415198E53 /* ReportsView.swift in Sources */,
 				EA1BA37FCC538C24FE66903A /* RootView.swift in Sources */,
 				3B1C7DF49EED93C1947F7FEF /* SalesView.swift in Sources */,
 				C451C4B707F600372AED2D28 /* SampleData.swift in Sources */,
 				DEA69761F8E952D2899FAED1 /* SpeechRecognizer.swift in Sources */,
+				16815AFE217B045B39508FAB /* SupabaseClient.swift in Sources */,
 				C49D47737097022C60D36336 /* TinkaApp.swift in Sources */,
 				41CB5CD8B30404DB9587AE99 /* TinkaChatView.swift in Sources */,
+				7788C94043D28C9214282A35 /* TinkaDataService.swift in Sources */,
 				D827A2112CA28EB22BBAAAE2 /* TinkaScoreCard.swift in Sources */,
 				70DEEB0CE4DE576301FD90F7 /* TinkaTabBar.swift in Sources */,
 				4EAF0E8E6350CB80D317877A /* TinkaTheme.swift in Sources */,
@@ -404,6 +457,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5C344C9F0054F40DFB131C46 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		6390DF9378D1652319BDA7A9 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5C344C9F0054F40DFB131C46 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 8FDB9358F24908C995578A1F /* Project object */;
 }
