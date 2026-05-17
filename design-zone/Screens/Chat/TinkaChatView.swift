@@ -9,13 +9,14 @@ struct TinkaChatView: View {
     @State private var inputText = ""
     @State private var isTyping = false
     @FocusState private var inputFocused: Bool
-    @State private var scrollProxy: ScrollViewProxy? = nil
 
     private let prompts: [SuggestedPrompt] = [
-        .init(icon: "chart.bar.fill", text: "¿Cómo va mi negocio?"),
-        .init(icon: "creditcard.fill", text: "¿Puedo acceder a un microcrédito?"),
-        .init(icon: "star.fill", text: "¿Qué producto vendo más?"),
-        .init(icon: "arrow.up.circle.fill", text: "¿Cómo puedo mejorar mi score?")
+        .init(icon: "chart.bar.fill",          text: "¿Cómo va mi negocio?"),
+        .init(icon: "star.fill",               text: "¿Cuál es mi producto estrella?"),
+        .init(icon: "arrow.up.circle.fill",    text: "¿Cómo puedo mejorar mi score?"),
+        .init(icon: "calendar.badge.clock",    text: "Dame un resumen de hoy"),
+        .init(icon: "creditcard.fill",         text: "¿Puedo acceder a un microcrédito?"),
+        .init(icon: "lightbulb.fill",          text: "¿Qué puedo mejorar en mi negocio?")
     ]
 
     var body: some View {
@@ -28,7 +29,7 @@ struct TinkaChatView: View {
                         LazyVStack(spacing: 12) {
                             if state.chatMessages.isEmpty { emptyState }
                             ForEach(state.chatMessages) { msg in ChatBubble(message: msg).id(msg.id) }
-                            if isTyping { typingIndicator }
+                            if isTyping { typingIndicator.id("typing") }
                             Color.clear.frame(height: 8).id("bottom")
                         }
                         .padding(.horizontal, 16).padding(.top, 12)
@@ -36,8 +37,8 @@ struct TinkaChatView: View {
                     .onChange(of: state.chatMessages.count) { _, _ in
                         withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
                     }
-                    .onChange(of: isTyping) { _, _ in
-                        withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+                    .onChange(of: isTyping) { _, v in
+                        if v { withAnimation { proxy.scrollTo("typing", anchor: .bottom) } }
                     }
                 }
                 if state.chatMessages.isEmpty { suggestedPromptsBar }
@@ -50,7 +51,7 @@ struct TinkaChatView: View {
     private var background: some View {
         ZStack {
             LinearGradient.tinkaSoftBackground.ignoresSafeArea()
-            Circle().fill(TinkaColor.royalPurple.opacity(0.15)).frame(width: 300).blur(radius: 80).offset(x: 150, y: -200)
+            Circle().fill(TinkaColor.royalPurple.opacity(0.13)).frame(width: 300).blur(radius: 80).offset(x: 150, y: -200)
         }
     }
 
@@ -69,14 +70,13 @@ struct TinkaChatView: View {
             }
             Spacer()
             if !state.chatMessages.isEmpty {
-                Button { state.chatMessages.removeAll() } label: {
+                Button { withAnimation { state.chatMessages.removeAll() } } label: {
                     Image(systemName: "trash").font(.system(size: 14)).foregroundColor(TinkaColor.subtleText)
                         .padding(8).background(Color.white.opacity(0.7)).clipShape(Circle())
                 }
             }
         }
-        .padding(.horizontal, 18).padding(.vertical, 12)
-        .background(.ultraThinMaterial)
+        .padding(.horizontal, 18).padding(.vertical, 12).background(.ultraThinMaterial)
     }
 
     private var emptyState: some View {
@@ -86,7 +86,8 @@ struct TinkaChatView: View {
                 Image(systemName: "sparkles").font(.system(size: 40)).foregroundColor(TinkaColor.magenta)
             }
             Text("¡Hola, Doña María!").font(.tinka(22, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
-            Text("Soy Tinka, tu copiloto financiero.\nPregúntame lo que necesites sobre tu negocio.").font(.tinka(14)).foregroundColor(TinkaColor.subtleText).multilineTextAlignment(.center)
+            Text("Soy Tinka, tu copiloto financiero.\nPregúntame lo que necesites sobre tu negocio.")
+                .font(.tinka(14)).foregroundColor(TinkaColor.subtleText).multilineTextAlignment(.center)
         }
         .padding(.top, 40)
     }
@@ -105,7 +106,6 @@ struct TinkaChatView: View {
                             .padding(.horizontal, 14).padding(.vertical, 10)
                             .background(Color.white.opacity(0.85)).clipShape(Capsule())
                             .overlay(Capsule().stroke(TinkaColor.cardStroke))
-                            .shadow(color: TinkaColor.royalPurple.opacity(0.06), radius: 4, y: 2)
                         }
                     }
                 }
@@ -117,19 +117,21 @@ struct TinkaChatView: View {
 
     private var inputBar: some View {
         HStack(spacing: 10) {
-            TextField("Pregúntale a Tinka...", text: $inputText)
+            TextField("Pregúntale a Tinka...", text: $inputText, axis: .vertical)
                 .font(.tinka(14)).focused($inputFocused)
+                .lineLimit(1...3)
                 .padding(.horizontal, 14).padding(.vertical, 12)
                 .background(Color.white.opacity(0.85)).clipShape(RoundedRectangle(cornerRadius: 20))
                 .overlay(RoundedRectangle(cornerRadius: 20).stroke(TinkaColor.cardStroke))
             Button { sendMessage(inputText) } label: {
                 Image(systemName: "arrow.up.circle.fill").font(.system(size: 36))
-                    .foregroundStyle(inputText.trimmingCharacters(in: .whitespaces).isEmpty ? AnyShapeStyle(Color.gray.opacity(0.4)) : AnyShapeStyle(LinearGradient.tinkaPrimary))
+                    .foregroundStyle(inputText.trimmingCharacters(in: .whitespaces).isEmpty
+                        ? AnyShapeStyle(Color.gray.opacity(0.35))
+                        : AnyShapeStyle(LinearGradient.tinkaPrimary))
             }
-            .disabled(inputText.trimmingCharacters(in: .whitespaces).isEmpty)
+            .disabled(inputText.trimmingCharacters(in: .whitespaces).isEmpty || isTyping)
         }
-        .padding(.horizontal, 16).padding(.vertical, 10)
-        .background(.ultraThinMaterial)
+        .padding(.horizontal, 16).padding(.vertical, 10).background(.ultraThinMaterial)
     }
 
     private var typingIndicator: some View {
@@ -138,70 +140,44 @@ struct TinkaChatView: View {
                 Circle().fill(LinearGradient.tinkaPrimary).frame(width: 32, height: 32)
                 Image(systemName: "sparkles").font(.system(size: 12)).foregroundColor(.white)
             }
-            HStack(spacing: 4) {
-                ForEach(0..<3, id: \.self) { i in
-                    Circle().fill(TinkaColor.subtleText).frame(width: 7, height: 7)
-                        .opacity(0.6).animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true).delay(Double(i) * 0.2), value: isTyping)
-                }
-            }
-            .padding(.horizontal, 14).padding(.vertical, 12)
-            .background(Color.white.opacity(0.9)).clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            TypingDots()
+                .padding(.horizontal, 14).padding(.vertical, 12)
+                .background(Color.white.opacity(0.9)).clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             Spacer()
         }
     }
 
     private func sendMessage(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty, !isTyping else { return }
         inputText = ""
         inputFocused = false
-        withAnimation {
-            state.chatMessages.append(ChatMessage(text: trimmed, isUser: true, timestamp: Date()))
-        }
+        withAnimation { state.chatMessages.append(ChatMessage(text: trimmed, isUser: true)) }
         isTyping = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
-            let reply = generateReply(for: trimmed)
-            withAnimation {
-                isTyping = false
-                state.chatMessages.append(ChatMessage(text: reply, isUser: false, timestamp: Date()))
-            }
+        let delay = Double.random(in: 1.2...2.0)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            let reply = TinkaAI.reply(for: trimmed, state: state)
+            withAnimation { isTyping = false; state.chatMessages.append(ChatMessage(text: reply, isUser: false)) }
         }
-    }
-
-    private func generateReply(for question: String) -> String {
-        let q = question.lowercased()
-        let score = state.tinkaScore
-        let today = state.todaySales
-        let week = state.weekSales
-        let topProd = state.topProduct
-        let status = state.financialStatus
-        let ticket = Int(state.averageTicket)
-        let utility = Int(state.utilityEstimate)
-
-        if q.contains("negocio") || q.contains("cómo va") || q.contains("como va") || q.contains("resumen") {
-            return "📊 Tu negocio está \(status.lowercased()), Doña María. Esta semana llevas Bs. \(Int(week)) en ventas, con utilidad estimada de Bs. \(utility). Tu Tinka Score es \(score)/100. \(score >= 75 ? "¡Sigue así! 💪" : "¡Cada venta cuenta! 🚀")"
-        }
-        if q.contains("crédito") || q.contains("microcrédito") || q.contains("prestamo") || q.contains("préstamo") {
-            let eligible = score >= 60
-            return eligible
-                ? "💳 ¡Buenas noticias! Con tu Tinka Score de \(score)/100 y ventas constantes, eres candidata ideal para un microcrédito. Puedes acceder a montos desde Bs. 2.000 hasta Bs. 15.000. Ve a la sección Crédito para simular tu préstamo. 🎯"
-                : "💳 Tu Tinka Score actual es \(score)/100. Necesitas al menos 60 puntos para calificar. Sigue registrando ventas diariamente y llegarás pronto. 📈"
-        }
-        if q.contains("producto") || q.contains("vendo más") || q.contains("mejor") {
-            return "⭐ Tu producto estrella es **\(topProd)** — es el más vendido en tu historial. El ticket promedio es Bs. \(ticket). ¡Considera preparar más en los días de mayor demanda! 🫓"
-        }
-        if q.contains("score") || q.contains("mejorar") || q.contains("puntaje") {
-            return "📈 Tu Tinka Score actual es \(score)/100. Para mejorarlo: 1️⃣ Registra todas tus ventas diariamente, 2️⃣ Mantén constancia en registros, 3️⃣ Aumenta tu promedio diario. \(score >= 85 ? "¡Estás en nivel Platino! 🏆" : "¡Vas muy bien! 💪")"
-        }
-        if q.contains("hoy") || q.contains("día") {
-            return today > 0
-                ? "📅 Hoy llevas Bs. \(Int(today)) en ventas con \(state.todaySaleCount) venta(s) registradas. Tu estado financiero de hoy es: **\(status)**. \(today >= 300 ? "¡Excelente día! 🌟" : "¡Sigue vendiendo! 💪")"
-                : "📅 Aún no has registrado ventas hoy. ¡Empieza ahora con el botón Voz o Ventas! 🎤"
-        }
-        return "🤔 Basándome en tus datos: llevas Bs. \(Int(today)) hoy y Bs. \(Int(week)) esta semana. Tu score es \(score)/100. ¿Puedo ayudarte con algo más específico? 😊"
     }
 }
 
+// MARK: - Typing Dots
+struct TypingDots: View {
+    @State private var phase = false
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<3, id: \.self) { i in
+                Circle().fill(TinkaColor.subtleText).frame(width: 7, height: 7)
+                    .scaleEffect(phase ? 1.0 : 0.5).opacity(phase ? 1 : 0.3)
+                    .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true).delay(Double(i) * 0.18), value: phase)
+            }
+        }
+        .onAppear { phase = true }
+    }
+}
+
+// MARK: - Chat Bubble
 struct ChatBubble: View {
     let message: ChatMessage
     var body: some View {
@@ -213,9 +189,13 @@ struct ChatBubble: View {
                 }
             }
             VStack(alignment: message.isUser ? .trailing : .leading, spacing: 4) {
-                Text(message.text).font(.tinka(14)).foregroundColor(message.isUser ? .white : TinkaColor.darkNavy)
+                Text(message.text)
+                    .font(.tinka(14))
+                    .foregroundColor(message.isUser ? .white : TinkaColor.darkNavy)
                     .padding(.horizontal, 14).padding(.vertical, 10)
-                    .background(message.isUser ? LinearGradient.tinkaPrimary : LinearGradient(colors: [Color.white.opacity(0.95)], startPoint: .leading, endPoint: .trailing))
+                    .background(message.isUser
+                        ? AnyShapeStyle(LinearGradient.tinkaPrimary)
+                        : AnyShapeStyle(Color.white.opacity(0.95)))
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                     .shadow(color: message.isUser ? TinkaColor.magenta.opacity(0.2) : Color.black.opacity(0.05), radius: 6, y: 3)
                 Text(message.timestamp, style: .time).font(.tinka(10)).foregroundColor(TinkaColor.subtleText)
@@ -224,6 +204,69 @@ struct ChatBubble: View {
         }
         .frame(maxWidth: .infinity, alignment: message.isUser ? .trailing : .leading)
         .transition(.asymmetric(insertion: .scale(scale: 0.85).combined(with: .opacity), removal: .opacity))
+    }
+}
+
+// MARK: - Tinka AI Engine
+enum TinkaAI {
+    static func reply(for question: String, state: AppState) -> String {
+        let q = question.lowercased()
+        let score = state.tinkaScore
+        let today = state.todaySales
+        let todayCount = state.todaySaleCount
+        let week = state.weekSales
+        let weekCount = state.weekSaleCount
+        let topProd = state.topProduct
+        let status = state.financialStatus
+        let ticket = Int(state.averageTicket)
+        let utility = Int(state.utilityEstimate)
+
+        // Resumen de hoy
+        if q.contains("hoy") || q.contains("día") || q.contains("resumen") {
+            if today == 0 {
+                return "📅 Aún no has registrado ventas hoy, Doña María. ¡Empieza ahora con el botón Voz 🎤 o la venta rápida! Cada venta suma a tu score."
+            }
+            return "📅 Hoy llevas **Bs. \(Int(today))** en \(todayCount) venta(s). Tu utilidad estimada es **Bs. \(Int(today * 0.35))**. Estado financiero: **\(status)**. \(today >= 300 ? "¡Excelente día! 🌟" : today >= 100 ? "Buen ritmo, sigue vendiendo 💪" : "Tienes potencial para más, ¡ánimo! 🚀")"
+        }
+
+        // Negocio / cómo va
+        if q.contains("negocio") || q.contains("cómo va") || q.contains("como va") {
+            return "📊 Tu negocio está **\(status)**, Doña María. Esta semana: **Bs. \(Int(week))** en \(weekCount) ventas. Utilidad estimada: **Bs. \(utility)**. Tu producto estrella es **\(topProd)**. Tinka Score: **\(score)/100**. \(score >= 75 ? "¡Vas excelente! 🏆" : "¡Sigue registrando para mejorar! 💪")"
+        }
+
+        // Producto estrella
+        if q.contains("producto") || q.contains("estrella") || q.contains("vendo más") || q.contains("mejor producto") {
+            let price = Int(ProductCatalog.prices[topProd] ?? 0)
+            return "⭐ Tu producto más vendido es **\(topProd)** (Bs. \(price) c/u). Ticket promedio actual: **Bs. \(ticket)**. Considera preparar más en los horarios de mayor demanda para maximizar tus ventas."
+        }
+
+        // Score / mejorar score
+        if q.contains("score") || q.contains("puntaje") || q.contains("mejorar score") {
+            let tips = score >= 85 ? "¡Estás en nivel Platino! Mantén tu constancia. 🏆" :
+                       score >= 70 ? "Para subir más: registra TODAS tus ventas diariamente y mantén constancia. 📈" :
+                       "Para mejorar rápido: 1️⃣ Registra ventas todos los días, 2️⃣ Apunta al menos Bs. 150/día, 3️⃣ Usa el micrófono para no olvidar ninguna venta."
+            return "📈 Tu Tinka Score actual es **\(score)/100**. \(tips)"
+        }
+
+        // Microcrédito
+        if q.contains("crédito") || q.contains("microcrédito") || q.contains("préstamo") || q.contains("prestamo") {
+            return score >= 60
+                ? "💳 ¡Buenas noticias! Con Score **\(score)/100** y ventas de **Bs. \(Int(week))** esta semana, calificas para microcrédito hasta **Bs. 15,000** con Banco FIE. Ve a la tab de Crédito para simular tu cuota. 🎯"
+                : "💳 Tu Score actual es **\(score)/100**. Necesitas al menos 60 pts para calificar. Sigue registrando ventas diariamente — en pocos días podrás acceder. 📈"
+        }
+
+        // Mejorar negocio / consejos
+        if q.contains("mejorar") || q.contains("consejo") || q.contains("tip") || q.contains("recomendación") {
+            return "💡 Mis recomendaciones para \(today == 0 ? "empezar bien el día" : "mejorar tus ventas"):\n1️⃣ Usa el micrófono 🎤 para registrar cada venta al momento\n2️⃣ Revisa tu reporte semanal cada domingo\n3️⃣ Tu ticket prom. es Bs. \(ticket) — ofrece combos para subirlo\n4️⃣ \(topProd) es tu estrella, ¡prioriza su stock!"
+        }
+
+        // Utilidad / ganancias
+        if q.contains("utilidad") || q.contains("ganancia") || q.contains("ingreso") {
+            return "💵 Esta semana tu utilidad estimada es **Bs. \(utility)** (35% de Bs. \(Int(week)) en ventas). Hoy: **Bs. \(Int(today * 0.35))** de utilidad. \(utility > 200 ? "¡Muy buen margen! 🌟" : "Sigue vendiendo para aumentar tus ganancias. 💪")"
+        }
+
+        // Respuesta genérica con datos reales
+        return "🤖 Hola Doña María. Hoy llevas **Bs. \(Int(today))** y esta semana **Bs. \(Int(week))**. Tu Score es **\(score)/100** y tu producto estrella es **\(topProd)**. ¿Quieres que te explique algo específico sobre tus ventas o finanzas? 😊"
     }
 }
 

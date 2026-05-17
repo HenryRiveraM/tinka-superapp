@@ -3,10 +3,11 @@ import SwiftUI
 struct AddSaleSheet: View {
     @EnvironmentObject var state: AppState
     @Environment(\.dismiss) var dismiss
-    @State private var quantities: [String: Int] = ["Salteña": 0, "Refresco": 0, "Almuerzo": 0, "Pique Macho": 0]
+    @State private var quantities: [String: Int] = [:]
     @State private var note = ""
+    @State private var confirming = false
 
-    let products = ["Salteña", "Refresco", "Almuerzo", "Pique Macho"]
+    private let products = ProductCatalog.quickProducts.map(\.name) + ["Coca Cola"]
 
     var total: Double {
         quantities.reduce(0) { $0 + Double($1.value) * (ProductCatalog.prices[$1.key] ?? 0) }
@@ -17,11 +18,11 @@ struct AddSaleSheet: View {
             ZStack {
                 LinearGradient.tinkaSoftBackground.ignoresSafeArea()
                 VStack(spacing: 0) {
-                    sheetHandle
-                    ScrollView {
+                    handle
+                    ScrollView(showsIndicators: false) {
                         VStack(spacing: 20) {
                             productRows
-                            totalRow
+                            if total > 0 { totalRow }
                             noteField
                             confirmButton
                         }
@@ -33,29 +34,40 @@ struct AddSaleSheet: View {
         }
     }
 
-    private var sheetHandle: some View {
+    private var handle: some View {
         VStack(spacing: 12) {
             RoundedRectangle(cornerRadius: 3).fill(Color.gray.opacity(0.3)).frame(width: 36, height: 4).padding(.top, 12)
-            Text("Nueva Venta Manual").font(.tinka(18, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
+            HStack {
+                Text("Nueva Venta Manual").font(.tinka(18, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
+                Spacer()
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark.circle.fill").font(.system(size: 24)).foregroundColor(TinkaColor.subtleText)
+                }
+            }
+            .padding(.horizontal, 20)
         }
     }
 
     private var productRows: some View {
         VStack(spacing: 0) {
             ForEach(products, id: \.self) { product in
+                let price = ProductCatalog.prices[product] ?? 0
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(product).font(.tinka(15, weight: .medium)).foregroundColor(TinkaColor.darkNavy)
-                        Text("Bs. \(ProductCatalog.prices[product] ?? 0, specifier: "%.0f") c/u").font(.tinka(12)).foregroundColor(TinkaColor.subtleText)
+                        Text("Bs. \(price, specifier: "%.0f") c/u").font(.tinka(12)).foregroundColor(TinkaColor.subtleText)
                     }
                     Spacer()
-                    HStack(spacing: 12) {
-                        Button { if (quantities[product] ?? 0) > 0 { quantities[product, default: 0] -= 1 } } label: {
-                            Image(systemName: "minus.circle.fill").font(.system(size: 24)).foregroundColor(TinkaColor.subtleText)
+                    HStack(spacing: 14) {
+                        Button {
+                            if (quantities[product] ?? 0) > 0 { quantities[product, default: 0] -= 1 }
+                        } label: {
+                            Image(systemName: "minus.circle.fill").font(.system(size: 26))
+                                .foregroundColor((quantities[product] ?? 0) > 0 ? TinkaColor.deepBlue : TinkaColor.subtleText.opacity(0.3))
                         }
                         Text("\(quantities[product] ?? 0)").font(.tinka(16, weight: .bold)).foregroundColor(TinkaColor.darkNavy).frame(width: 24)
                         Button { quantities[product, default: 0] += 1 } label: {
-                            Image(systemName: "plus.circle.fill").font(.system(size: 24)).foregroundColor(TinkaColor.deepBlue)
+                            Image(systemName: "plus.circle.fill").font(.system(size: 26)).foregroundColor(TinkaColor.deepBlue)
                         }
                     }
                 }
@@ -68,9 +80,13 @@ struct AddSaleSheet: View {
 
     private var totalRow: some View {
         HStack {
-            Text("Total").font(.tinka(16, weight: .semibold)).foregroundColor(TinkaColor.darkNavy)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Total de venta").font(.tinka(13)).foregroundColor(TinkaColor.subtleText)
+                Text("Bs. \(total, specifier: "%.2f")").font(.tinka(28, weight: .bold)).foregroundColor(TinkaColor.deepBlue)
+                    .animation(.spring(response: 0.4), value: total)
+            }
             Spacer()
-            Text("Bs. \(total, specifier: "%.2f")").font(.tinka(22, weight: .bold)).foregroundColor(TinkaColor.deepBlue)
+            Image(systemName: "checkmark.circle.fill").font(.system(size: 32)).foregroundColor(TinkaColor.green)
         }
         .padding(16).glassCard()
     }
@@ -81,26 +97,36 @@ struct AddSaleSheet: View {
             TextField("Ej. cliente especial, descuento...", text: $note)
                 .font(.tinka(14)).padding(12)
                 .background(Color.white.opacity(0.7)).clipShape(RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(TinkaColor.cardStroke))
         }
     }
 
     private var confirmButton: some View {
         Button {
-            guard total > 0 else { return }
+            guard total > 0, !confirming else { return }
+            confirming = true
             let prods = quantities.compactMap { kv -> SaleProduct? in
                 guard kv.value > 0 else { return nil }
                 return SaleProduct(name: kv.key, qty: kv.value, price: ProductCatalog.prices[kv.key] ?? 0)
             }
             state.addSale(SaleItem(date: Date(), products: prods, total: total, channel: .manual))
-            dismiss()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { dismiss() }
         } label: {
-            Text(total > 0 ? "Confirmar — Bs. \(total, specifier: "%.2f")" : "Selecciona productos")
-                .font(.tinka(16, weight: .bold)).foregroundColor(.white).frame(maxWidth: .infinity).padding(16)
-                .background(total > 0 ? LinearGradient.tinkaPrimary : LinearGradient(colors: [Color.gray.opacity(0.4)], startPoint: .leading, endPoint: .trailing))
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .shadow(color: total > 0 ? TinkaColor.magenta.opacity(0.3) : .clear, radius: 10, y: 5)
+            HStack {
+                if confirming {
+                    ProgressView().tint(.white)
+                    Text("Guardando...").font(.tinka(16, weight: .bold))
+                } else {
+                    Text(total > 0 ? "Confirmar — Bs. \(total, specifier: "%.2f")" : "Selecciona productos")
+                        .font(.tinka(16, weight: .bold))
+                }
+            }
+            .foregroundColor(.white).frame(maxWidth: .infinity).padding(16)
+            .background(total > 0 ? AnyShapeStyle(LinearGradient.tinkaPrimary) : AnyShapeStyle(Color.gray.opacity(0.35)))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .shadow(color: total > 0 ? TinkaColor.magenta.opacity(0.3) : .clear, radius: 10, y: 5)
         }
-        .disabled(total == 0)
+        .disabled(total == 0 || confirming)
     }
 }
 

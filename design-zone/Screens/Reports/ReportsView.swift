@@ -2,8 +2,16 @@ import SwiftUI
 
 struct ReportsView: View {
     @EnvironmentObject var state: AppState
-    @State private var selectedPeriod: ReportPeriod = .week
-    @State private var showExportAlert = false
+    @State private var selectedPeriod: AppPeriod = .week
+    @State private var showShareSheet = false
+    @State private var reportText = ""
+
+    private var filtered: [SaleItem] { state.salesForPeriod(selectedPeriod) }
+    private var filteredTotal: Double { filtered.reduce(0) { $0 + $1.total } }
+    private var filteredCount: Int { filtered.count }
+    private var filteredTicket: Double { filteredCount > 0 ? filteredTotal / Double(filteredCount) : 0 }
+    private var filteredUtility: Double { filteredTotal * 0.35 }
+    private var productStats: [ProductStat] { computeProductStats(from: filtered) }
 
     var body: some View {
         ZStack {
@@ -13,25 +21,23 @@ struct ReportsView: View {
                     reportHeader
                     periodPicker
                     summaryCards
-                    DailyChartCard()
-                    topProductCard
+                    ReportChartCard()
+                    topProductsCard
                     salesHistoryCard
                     Color.clear.frame(height: 110)
                 }
                 .padding(.horizontal, 18).padding(.top, 8)
             }
         }
-        .alert("Reporte generado", isPresented: $showExportAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("El reporte de \(selectedPeriod.label) fue generado correctamente. Comparte con tu contador o guárdalo para tu seguimiento.")
+        .sheet(isPresented: $showShareSheet) {
+            ShareSheet(activityItems: [reportText])
         }
     }
 
     private var background: some View {
         ZStack {
             LinearGradient.tinkaSoftBackground.ignoresSafeArea()
-            Circle().fill(TinkaColor.deepBlue.opacity(0.14)).frame(width: 300).blur(radius: 90).offset(x: -120, y: -180)
+            Circle().fill(TinkaColor.deepBlue.opacity(0.12)).frame(width: 300).blur(radius: 90).offset(x: -120, y: -180)
         }
     }
 
@@ -42,7 +48,10 @@ struct ReportsView: View {
                 Text("Resumen de tu negocio").font(.tinka(14)).foregroundColor(TinkaColor.subtleText)
             }
             Spacer()
-            Button { showExportAlert = true } label: {
+            Button {
+                reportText = generateReportText()
+                showShareSheet = true
+            } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "square.and.arrow.up").font(.system(size: 13, weight: .semibold))
                     Text("Exportar").font(.tinka(13, weight: .semibold))
@@ -57,9 +66,11 @@ struct ReportsView: View {
 
     private var periodPicker: some View {
         HStack(spacing: 0) {
-            ForEach(ReportPeriod.allCases, id: \.self) { p in
-                Button { withAnimation(.spring(response: 0.3)) { selectedPeriod = p } } label: {
-                    Text(p.label)
+            ForEach(AppPeriod.allCases, id: \.self) { p in
+                Button {
+                    withAnimation(.spring(response: 0.3)) { selectedPeriod = p }
+                } label: {
+                    Text(p.rawValue)
                         .font(.tinka(13, weight: .semibold))
                         .foregroundColor(selectedPeriod == p ? .white : TinkaColor.subtleText)
                         .frame(maxWidth: .infinity).padding(.vertical, 10)
@@ -73,31 +84,11 @@ struct ReportsView: View {
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(TinkaColor.cardStroke))
     }
 
-    private var filteredSales: [SaleItem] {
-        let cal = Calendar.current
-        return state.sales.filter { sale in
-            switch selectedPeriod {
-            case .today: return cal.isDateInToday(sale.date)
-            case .week:
-                let start = cal.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-                return sale.date >= start
-            case .month:
-                let start = cal.date(byAdding: .day, value: -30, to: Date()) ?? Date()
-                return sale.date >= start
-            }
-        }
-    }
-
-    private var filteredTotal: Double { filteredSales.reduce(0) { $0 + $1.total } }
-    private var filteredCount: Int { filteredSales.count }
-    private var filteredTicket: Double { filteredCount > 0 ? filteredTotal / Double(filteredCount) : 0 }
-    private var filteredUtility: Double { filteredTotal * 0.35 }
-
     private var summaryCards: some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
-                summaryTile(title: "Total vendido", value: "Bs. \(Int(filteredTotal))", icon: "bolivanosign.circle.fill", color: TinkaColor.deepBlue)
-                summaryTile(title: "# Ventas", value: "\(filteredCount)", icon: "cart.fill", color: TinkaColor.royalPurple)
+                summaryTile(title: "Total vendido", value: "Bs. \(Int(filteredTotal))", icon: "cart.fill", color: TinkaColor.deepBlue)
+                summaryTile(title: "# Ventas", value: "\(filteredCount)", icon: "list.bullet.rectangle.fill", color: TinkaColor.royalPurple)
             }
             HStack(spacing: 12) {
                 summaryTile(title: "Utilidad est.", value: "Bs. \(Int(filteredUtility))", icon: "arrow.up.circle.fill", color: TinkaColor.green)
@@ -110,35 +101,48 @@ struct ReportsView: View {
         HStack(spacing: 12) {
             ZStack {
                 RoundedRectangle(cornerRadius: 10).fill(color.opacity(0.12)).frame(width: 40, height: 40)
-                Image(systemName: icon).font(.system(size: 18)).foregroundColor(color)
+                Image(systemName: icon).font(.system(size: 17)).foregroundColor(color)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.tinka(11, weight: .medium)).foregroundColor(TinkaColor.subtleText)
                 Text(value).font(.tinka(16, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
+                    .animation(.spring(response: 0.4), value: value)
             }
             Spacer()
         }
         .padding(14).glassCard(cornerRadius: 16).frame(maxWidth: .infinity)
     }
 
-    private var topProductCard: some View {
-        let products = productBreakdown(from: filteredSales)
-        return VStack(alignment: .leading, spacing: 14) {
-            Text("Productos más vendidos").font(.tinka(15, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
-            if products.isEmpty {
-                Text("No hay datos para este período.").font(.tinka(13)).foregroundColor(TinkaColor.subtleText)
+    private var topProductsCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Productos más vendidos").font(.tinka(15, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
+                Spacer()
+                Text(selectedPeriod.rawValue).font(.tinka(12)).foregroundColor(TinkaColor.subtleText)
+            }
+            if productStats.isEmpty {
+                emptyProductsState
             } else {
-                ForEach(products.prefix(5), id: \.name) { item in
-                    productRow(item: item, total: products.first?.qty ?? 1)
+                let maxQty = productStats.first?.qty ?? 1
+                ForEach(productStats.prefix(5), id: \.name) { item in
+                    productBar(item: item, maxQty: maxQty)
                 }
             }
         }
         .padding(18).glassCard()
     }
 
-    private func productRow(item: ProductStat, total: Int) -> some View {
-        let pct = total > 0 ? Double(item.qty) / Double(total) : 0
-        return VStack(spacing: 6) {
+    private var emptyProductsState: some View {
+        HStack {
+            Image(systemName: "chart.bar").font(.system(size: 24)).foregroundColor(TinkaColor.subtleText.opacity(0.4))
+            Text("No hay ventas en este período").font(.tinka(13)).foregroundColor(TinkaColor.subtleText)
+        }
+        .padding(.vertical, 8)
+    }
+
+    private func productBar(item: ProductStat, maxQty: Int) -> some View {
+        let pct = maxQty > 0 ? Double(item.qty) / Double(maxQty) : 0
+        return VStack(spacing: 5) {
             HStack {
                 Text(item.name).font(.tinka(14, weight: .medium)).foregroundColor(TinkaColor.darkNavy)
                 Spacer()
@@ -146,34 +150,47 @@ struct ReportsView: View {
             }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4).fill(TinkaColor.lightGray).frame(maxWidth: .infinity, maxHeight: 6)
-                    RoundedRectangle(cornerRadius: 4).fill(LinearGradient.tinkaPrimary).frame(width: geo.size.width * pct, height: 6)
+                    RoundedRectangle(cornerRadius: 4).fill(TinkaColor.lightGray).frame(maxWidth: .infinity, maxHeight: 8)
+                    RoundedRectangle(cornerRadius: 4).fill(LinearGradient.tinkaPrimary).frame(width: geo.size.width * pct, height: 8)
                 }
             }
-            .frame(height: 6)
+            .frame(height: 8)
         }
     }
 
     private var salesHistoryCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Historial de ventas").font(.tinka(15, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
-            if filteredSales.isEmpty {
-                Text("No hay ventas en este período.").font(.tinka(13)).foregroundColor(TinkaColor.subtleText).padding(.top, 4)
+            HStack {
+                Text("Historial de ventas").font(.tinka(15, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
+                Spacer()
+                Text("\(filtered.count) registros").font(.tinka(12)).foregroundColor(TinkaColor.subtleText)
+            }
+            if filtered.isEmpty {
+                VStack(spacing: 10) {
+                    Image(systemName: "clock").font(.system(size: 28)).foregroundColor(TinkaColor.subtleText.opacity(0.4))
+                    Text("No hay ventas en este período.").font(.tinka(13)).foregroundColor(TinkaColor.subtleText)
+                }
+                .frame(maxWidth: .infinity).padding(.vertical, 16)
             } else {
-                ForEach(filteredSales.prefix(10)) { sale in
-                    reportSaleRow(sale: sale)
-                    if sale.id != filteredSales.prefix(10).last?.id { Divider() }
+                ForEach(filtered.prefix(15)) { sale in
+                    historyRow(sale: sale)
+                    if sale.id != filtered.prefix(15).last?.id { Divider() }
+                }
+                if filtered.count > 15 {
+                    Text("+ \(filtered.count - 15) ventas más").font(.tinka(12)).foregroundColor(TinkaColor.subtleText).frame(maxWidth: .infinity).padding(.top, 4)
                 }
             }
         }
         .padding(18).glassCard()
     }
 
-    private func reportSaleRow(sale: SaleItem) -> some View {
-        HStack(spacing: 12) {
+    private func historyRow(sale: SaleItem) -> some View {
+        let chIcon = channelIcon(sale.channel)
+        let chColor = channelColor(sale.channel)
+        return HStack(spacing: 12) {
             ZStack {
-                Circle().fill(channelColor(sale.channel).opacity(0.15)).frame(width: 36, height: 36)
-                Image(systemName: channelIcon(sale.channel)).font(.system(size: 14)).foregroundColor(channelColor(sale.channel))
+                Circle().fill(chColor.opacity(0.14)).frame(width: 36, height: 36)
+                Image(systemName: chIcon).font(.system(size: 14)).foregroundColor(chColor)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(sale.products.map { "\($0.qty)x \($0.name)" }.joined(separator: ", "))
@@ -192,28 +209,58 @@ struct ReportsView: View {
         switch ch { case .voice: return TinkaColor.magenta; case .quick: return TinkaColor.royalPurple; case .manual: return TinkaColor.deepBlue }
     }
 
-    private func productBreakdown(from sales: [SaleItem]) -> [ProductStat] {
+    private func computeProductStats(from sales: [SaleItem]) -> [ProductStat] {
         var map: [String: (qty: Int, revenue: Double)] = [:]
         for sale in sales {
             for p in sale.products {
-                let existing = map[p.name] ?? (0, 0)
-                map[p.name] = (existing.qty + p.qty, existing.revenue + p.subtotal)
+                let ex = map[p.name] ?? (0, 0)
+                map[p.name] = (ex.qty + p.qty, ex.revenue + p.subtotal)
             }
         }
         return map.map { ProductStat(name: $0.key, qty: $0.value.qty, revenue: $0.value.revenue) }
                   .sorted { $0.qty > $1.qty }
     }
-}
 
-struct ProductStat { let name: String; let qty: Int; let revenue: Double }
-enum ReportPeriod: CaseIterable { case today, week, month
-    var label: String {
-        switch self { case .today: return "Hoy"; case .week: return "Semana"; case .month: return "Mes" }
+    private func generateReportText() -> String {
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "es_BO")
+        fmt.dateStyle = .medium
+        let topProds = productStats.prefix(3).map { "\($0.name): \($0.qty) uds (Bs. \(Int($0.revenue)))" }.joined(separator: "\n  ")
+        return """
+        📊 REPORTE TINKA - \(selectedPeriod.rawValue.uppercased())
+        Fecha: \(fmt.string(from: Date()))
+        Negocio: Salteñas Doña María
+        ─────────────────────────
+        💰 Total vendido: Bs. \(Int(filteredTotal))
+        🛒 Número de ventas: \(filteredCount)
+        🎯 Ticket promedio: Bs. \(Int(filteredTicket))
+        💵 Utilidad estimada (35%): Bs. \(Int(filteredUtility))
+        ─────────────────────────
+        🏆 TOP PRODUCTOS:
+          \(topProds.isEmpty ? "Sin datos" : topProds)
+        ─────────────────────────
+        📈 Tinka Score: \(state.tinkaScore)/100
+        Estado: \(state.financialStatus)
+        ─────────────────────────
+        Generado por Tinka App
+        """
     }
 }
 
-// MARK: - Daily Chart Card
-struct DailyChartCard: View {
+// MARK: - Product Stat
+struct ProductStat { let name: String; let qty: Int; let revenue: Double }
+
+// MARK: - Share Sheet
+struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+// MARK: - Report Chart Card
+struct ReportChartCard: View {
     @EnvironmentObject var state: AppState
 
     var body: some View {
@@ -223,30 +270,32 @@ struct DailyChartCard: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Tendencia semanal").font(.tinka(15, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
-                    Text("Ventas por día · últimos 7 días").font(.tinka(11)).foregroundColor(TinkaColor.subtleText)
+                    Text("Últimos 7 días").font(.tinka(11)).foregroundColor(TinkaColor.subtleText)
                 }
                 Spacer()
-                Text("Bs. \(Int(state.weekSales))").font(.tinka(14, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .background(Capsule().fill(TinkaColor.lightGray))
+                Text("Bs. \(Int(state.weekSales))")
+                    .font(.tinka(14, weight: .bold)).foregroundColor(TinkaColor.darkNavy)
+                    .padding(.horizontal, 10).padding(.vertical, 6).background(Capsule().fill(TinkaColor.lightGray))
             }
             GeometryReader { geo in
                 HStack(alignment: .bottom, spacing: 8) {
                     ForEach(trend, id: \.day) { point in
                         VStack(spacing: 4) {
+                            if point.value > 0 {
+                                Text("Bs.\(Int(point.value))")
+                                    .font(.tinka(8)).foregroundColor(TinkaColor.subtleText).lineLimit(1).minimumScaleFactor(0.5)
+                            }
                             ZStack(alignment: .bottom) {
                                 RoundedRectangle(cornerRadius: 8).fill(TinkaColor.lightGray).frame(maxWidth: .infinity)
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(LinearGradient.tinkaPrimary)
-                                    .frame(height: barH(point.value, max: maxVal, available: geo.size.height - 20))
+                                RoundedRectangle(cornerRadius: 8).fill(LinearGradient.tinkaPrimary)
+                                    .frame(height: Swift.max(8, (geo.size.height - 36) * (maxVal > 0 ? point.value / maxVal : 0)))
                             }
                             Text(point.day).font(.tinka(10, weight: .semibold)).foregroundColor(TinkaColor.subtleText)
                         }
                     }
                 }
             }
-            .frame(height: 130)
-
+            .frame(height: 140)
             if let best = trend.max(by: { $0.value < $1.value }), best.value > 0 {
                 HStack(spacing: 6) {
                     Image(systemName: "arrow.up.right.circle.fill").foregroundStyle(TinkaColor.green)
@@ -255,11 +304,6 @@ struct DailyChartCard: View {
             }
         }
         .padding(18).glassCard()
-    }
-
-    private func barH(_ val: Double, max maxVal: Double, available: CGFloat) -> CGFloat {
-        guard maxVal > 0 else { return 4 }
-        return Swift.max(8, available * (val / maxVal))
     }
 }
 

@@ -37,9 +37,28 @@ struct ChatMessage: Identifiable, Codable {
     let isUser: Bool
     let timestamp: Date
 
-    init(id: UUID = UUID(), text: String, isUser: Bool, timestamp: Date) {
+    init(id: UUID = UUID(), text: String, isUser: Bool, timestamp: Date = Date()) {
         self.id = id; self.text = text; self.isUser = isUser; self.timestamp = timestamp
     }
+}
+
+// MARK: - Product Catalog
+
+enum ProductCatalog {
+    static let prices: [String: Double] = [
+        "Salteña": 5.0,
+        "Refresco": 4.0,
+        "Almuerzo": 15.0,
+        "Pique Macho": 35.0,
+        "Coca Cola": 12.0
+    ]
+
+    static let quickProducts: [(name: String, emoji: String, color: Color)] = [
+        ("Salteña",    "🫓", TinkaColor.magenta),
+        ("Refresco",   "🥤", TinkaColor.deepBlue),
+        ("Almuerzo",   "🍱", TinkaColor.royalPurple),
+        ("Pique Macho","🥩", Color(hex: "E97316"))
+    ]
 }
 
 // MARK: - AppState
@@ -48,7 +67,7 @@ class AppState: ObservableObject {
     static let shared = AppState()
 
     @Published var sales: [SaleItem] = [] {
-        didSet { persist() }
+        didSet { persistSales() }
     }
     @Published var chatMessages: [ChatMessage] = [] {
         didSet { persistChat() }
@@ -60,11 +79,14 @@ class AppState: ObservableObject {
         if sales.isEmpty { sales = SeedData.defaultSales }
     }
 
-    // MARK: Computed
+    // MARK: - Computed properties
 
     var todaySales: Double {
-        let cal = Calendar.current
-        return sales.filter { cal.isDateInToday($0.date) }.reduce(0) { $0 + $1.total }
+        sales.filter { Calendar.current.isDateInToday($0.date) }.reduce(0) { $0 + $1.total }
+    }
+
+    var todaySaleCount: Int {
+        sales.filter { Calendar.current.isDateInToday($0.date) }.count
     }
 
     var weekSales: Double {
@@ -72,22 +94,20 @@ class AppState: ObservableObject {
         return sales.filter { $0.date >= start }.reduce(0) { $0 + $1.total }
     }
 
-    var todaySaleCount: Int {
-        Calendar.current.isDateInToday(Date()) ? sales.filter { Calendar.current.isDateInToday($0.date) }.count : 0
-    }
-
     var weekSaleCount: Int {
         let start = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
         return sales.filter { $0.date >= start }.count
     }
 
+    var monthSales: Double {
+        let start = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        return sales.filter { $0.date >= start }.reduce(0) { $0 + $1.total }
+    }
+
     var utilityEstimate: Double { weekSales * 0.35 }
 
     var averageTicket: Double {
-        let week = sales.filter {
-            let start = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-            return $0.date >= start
-        }
+        let week = salesForPeriod(.week)
         guard !week.isEmpty else { return 0 }
         return week.reduce(0) { $0 + $1.total } / Double(week.count)
     }
@@ -113,89 +133,97 @@ class AppState: ObservableObject {
     }
 
     var tinkaScore: Int {
-        let salesScore = min(Int(weekSales / 50), 30)   // up to 30 pts
-        let consistencyScore: Int = {
-            let cal = Calendar.current
-            var days = Set<Int>()
-            for sale in sales {
-                let day = cal.ordinality(of: .day, in: .era, for: sale.date) ?? 0
-                days.insert(day)
-            }
-            return min(days.count * 3, 20)  // up to 20 pts
-        }()
-        let utilityScore = min(Int(utilityEstimate / 40), 15)  // up to 15 pts
+        let salesScore = min(Int(weekSales / 50), 30)
+        let cal = Calendar.current
+        var activeDays = Set<Int>()
+        for sale in sales {
+            let day = cal.ordinality(of: .day, in: .era, for: sale.date) ?? 0
+            activeDays.insert(day)
+        }
+        let consistencyScore = min(activeDays.count * 3, 20)
+        let utilityScore = min(Int(utilityEstimate / 40), 15)
         return min(40 + salesScore + consistencyScore + utilityScore, 100)
     }
 
-    // MARK: Daily data for chart (last 7 days)
     var dailyTrend: [(day: String, value: Double)] {
         let cal = Calendar.current
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "es_BO")
-        formatter.dateFormat = "E"
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "es_BO")
+        fmt.dateFormat = "E"
         return (0..<7).reversed().map { offset -> (String, Double) in
             let date = cal.date(byAdding: .day, value: -offset, to: Date()) ?? Date()
-            let dayLabel = String(formatter.string(from: date).prefix(2)).capitalized
+            let label = String(fmt.string(from: date).prefix(2)).capitalized
             let total = sales.filter { cal.isDate($0.date, inSameDayAs: date) }.reduce(0) { $0 + $1.total }
-            return (dayLabel, total)
+            return (label, total)
         }
     }
 
-    // MARK: Actions
+    // MARK: - Actions
 
     func addSale(_ sale: SaleItem) {
-        withAnimation { sales.insert(sale, at: 0) }
+        withAnimation(.spring(response: 0.4)) { sales.insert(sale, at: 0) }
     }
 
-    // MARK: Persistence
+    func deleteSale(_ id: UUID) {
+        withAnimation { sales.removeAll { $0.id == id } }
+    }
 
-    private func persist() {
-        if let data = try? JSONEncoder().encode(sales) {
-            UserDefaults.standard.set(data, forKey: "tinka_sales_v1")
+    func salesForPeriod(_ period: AppPeriod) -> [SaleItem] {
+        let cal = Calendar.current
+        return sales.filter { sale in
+            switch period {
+            case .today: return cal.isDateInToday(sale.date)
+            case .week:
+                let start = cal.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+                return sale.date >= start
+            case .month:
+                let start = cal.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+                return sale.date >= start
+            }
         }
+    }
+
+    // MARK: - Persistence
+
+    private func persistSales() {
+        guard let data = try? JSONEncoder().encode(sales) else { return }
+        UserDefaults.standard.set(data, forKey: "tinka_sales_v2")
     }
 
     private func loadSales() {
-        guard let data = UserDefaults.standard.data(forKey: "tinka_sales_v1"),
+        guard let data = UserDefaults.standard.data(forKey: "tinka_sales_v2"),
               let decoded = try? JSONDecoder().decode([SaleItem].self, from: data) else { return }
         sales = decoded
     }
 
     private func persistChat() {
-        if let data = try? JSONEncoder().encode(chatMessages) {
-            UserDefaults.standard.set(data, forKey: "tinka_chat_v1")
-        }
+        guard let data = try? JSONEncoder().encode(chatMessages) else { return }
+        UserDefaults.standard.set(data, forKey: "tinka_chat_v2")
     }
 
     private func loadChat() {
-        guard let data = UserDefaults.standard.data(forKey: "tinka_chat_v1"),
+        guard let data = UserDefaults.standard.data(forKey: "tinka_chat_v2"),
               let decoded = try? JSONDecoder().decode([ChatMessage].self, from: data) else { return }
         chatMessages = decoded
     }
 }
 
-// MARK: - Catalog
+// MARK: - Period enum
 
-enum ProductCatalog {
-    static let prices: [String: Double] = [
-        "Salteña": 5.0,
-        "Refresco": 4.0,
-        "Almuerzo": 15.0,
-        "Pique Macho": 35.0,
-        "Coca Cola": 12.0
-    ]
+enum AppPeriod: String, CaseIterable {
+    case today = "Hoy", week = "Semana", month = "Mes"
 }
 
-// MARK: - Seed
+// MARK: - Seed Data
 
 enum SeedData {
     static var defaultSales: [SaleItem] {
         let cal = Calendar.current
         func ago(_ h: Int) -> Date { cal.date(byAdding: .hour, value: -h, to: Date()) ?? Date() }
         return [
-            SaleItem(date: ago(1), products: [.init(name: "Salteña", qty: 5, price: 5), .init(name: "Refresco", qty: 3, price: 4)], total: 37, channel: .voice),
-            SaleItem(date: ago(2), products: [.init(name: "Almuerzo", qty: 2, price: 15)], total: 30, channel: .manual),
-            SaleItem(date: ago(3), products: [.init(name: "Pique Macho", qty: 1, price: 35), .init(name: "Refresco", qty: 2, price: 4)], total: 43, channel: .quick),
+            SaleItem(date: ago(1),  products: [.init(name: "Salteña", qty: 5, price: 5), .init(name: "Refresco", qty: 3, price: 4)],  total: 37, channel: .voice),
+            SaleItem(date: ago(2),  products: [.init(name: "Almuerzo", qty: 2, price: 15)], total: 30, channel: .manual),
+            SaleItem(date: ago(3),  products: [.init(name: "Pique Macho", qty: 1, price: 35), .init(name: "Refresco", qty: 2, price: 4)], total: 43, channel: .quick),
             SaleItem(date: ago(26), products: [.init(name: "Salteña", qty: 8, price: 5)], total: 40, channel: .manual),
             SaleItem(date: ago(27), products: [.init(name: "Almuerzo", qty: 3, price: 15)], total: 45, channel: .quick),
             SaleItem(date: ago(50), products: [.init(name: "Salteña", qty: 10, price: 5), .init(name: "Refresco", qty: 5, price: 4)], total: 70, channel: .voice)
