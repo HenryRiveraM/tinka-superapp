@@ -2,6 +2,12 @@
 
 iOS SwiftUI app for sales, catalog, voice parsing, and Supabase REST workflows.
 
+## Hackathon documentation
+
+Full project documentation for presentation:
+
+`HACKATHON_DOCUMENTATION.md`
+
 ## Supabase hackathon setup
 
 For hackathon runs, disable email confirmation so registration returns a session immediately and avoids confirmation email rate limits:
