@@ -3,7 +3,7 @@ import Speech
 
 // MARK: - Flow State
 enum VoiceFlowState: Equatable {
-    case idle, listening, processing, confirmed, ambiguous, success
+    case idle, listening, processing, confirmed, ambiguous, newProduct, success
 }
 
 // MARK: - Voice View
@@ -14,6 +14,7 @@ struct VoiceView: View {
     @State private var flowState: VoiceFlowState = .idle
     @State private var parsedProducts: [SaleProduct] = []
     @State private var ambiguousCandidates: [ParsedMatch] = []
+    @State private var newProductCandidates: [NewProductCandidate] = []
     @State private var showPermissionAlert = false
 
     var parsedTotal: Double { parsedProducts.reduce(0) { $0 + $1.subtotal } }
@@ -91,6 +92,7 @@ struct VoiceView: View {
         case .listening:  return "Escuchando…"
         case .processing: return "Analizando tu voz…"
         case .ambiguous:  return "¿Quisiste decir alguno de estos?"
+        case .newProduct: return "Producto nuevo detectado"
         case .confirmed:  return "Tinka detectó esto"
         case .success:    return "¡Venta guardada!"
         }
@@ -104,6 +106,7 @@ struct VoiceView: View {
             case .processing: return ("Procesando", TinkaColor.yellow)
             case .ambiguous:  return ("? Confirmar", TinkaColor.yellow)
             case .confirmed:  return ("Detectado", TinkaColor.deepBlue)
+            case .newProduct: return ("Nuevo", TinkaColor.magenta)
             case .success:    return ("✓ Guardado", TinkaColor.green)
             }
         }()
@@ -125,6 +128,7 @@ struct VoiceView: View {
         case .listening:  listeningCenter
         case .processing: processingCenter
         case .ambiguous:  ambiguousCard
+        case .newProduct: newProductCard
         case .confirmed:  confirmationCard
         case .success:    successCenter
         }
@@ -242,6 +246,56 @@ struct VoiceView: View {
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(TinkaColor.yellow.opacity(0.2)))
         }
+    }
+
+    // MARK: - NEW PRODUCT
+    private var newProductCard: some View {
+        VStack(spacing: 16) {
+            transcriptQuote
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundColor(TinkaColor.magenta)
+                        .font(.system(size: 20))
+                    Text("No está en tu catálogo")
+                        .font(.tinka(16, weight: .bold))
+                        .foregroundColor(.white)
+                }
+
+                if !newProductCandidates.isEmpty {
+                    ForEach(newProductCandidates, id: \.name) { candidate in
+                    HStack(spacing: 12) {
+                        Text("🍽️").font(.system(size: 28))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(candidate.name)
+                                .font(.tinka(17, weight: .bold))
+                                .foregroundColor(.white)
+                            Text("Precio detectado: Bs. \(candidate.price, specifier: "%.0f")")
+                                .font(.tinka(13))
+                                .foregroundColor(.white.opacity(0.62))
+                        }
+                        Spacer()
+                        Text("\(candidate.qty)x")
+                            .font(.tinka(18, weight: .black))
+                            .foregroundColor(TinkaColor.magenta)
+                    }
+                    .padding(14)
+                    .background(Color.white.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(TinkaColor.magenta.opacity(0.24)))
+                    }
+                }
+
+                Text("Puedo agregarlos al catálogo y dejar la venta lista para confirmar.")
+                    .font(.tinka(13))
+                    .foregroundColor(.white.opacity(0.58))
+            }
+            .padding(18)
+            .background(Color.white.opacity(0.05))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(RoundedRectangle(cornerRadius: 20).stroke(TinkaColor.magenta.opacity(0.30)))
+        }
+        .transition(.asymmetric(insertion: .scale(scale: 0.92).combined(with: .opacity), removal: .opacity))
     }
 
     // MARK: - CONFIRMED
@@ -375,6 +429,7 @@ struct VoiceView: View {
         case .listening:  stopButton
         case .processing: Color.clear.frame(height: 60)
         case .ambiguous:  ambiguousBottomButtons
+        case .newProduct: newProductButtons
         case .confirmed:  confirmButtons
         case .success:    newSaleButton
         }
@@ -470,6 +525,47 @@ struct VoiceView: View {
         }
     }
 
+    private var newProductButtons: some View {
+        VStack(spacing: 12) {
+            Button { addNewProductAndPrepareSale() } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle.fill").font(.system(size: 18))
+                    Text("Agregar al catálogo").font(.tinka(17, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity).padding(18)
+                .background(LinearGradient.tinkaPrimary)
+                .clipShape(RoundedRectangle(cornerRadius: 18))
+                .shadow(color: TinkaColor.magenta.opacity(0.4), radius: 14, y: 6)
+            }
+
+            HStack(spacing: 12) {
+                Button { reset() } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "xmark").font(.system(size: 13))
+                        Text("Cancelar").font(.tinka(15, weight: .medium))
+                    }
+                    .foregroundColor(.white.opacity(0.65))
+                    .frame(maxWidth: .infinity).padding(16)
+                    .background(Color.white.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.12)))
+                }
+                Button { startListening() } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "mic.fill").font(.system(size: 13))
+                        Text("Reintentar").font(.tinka(15, weight: .medium))
+                    }
+                    .foregroundColor(TinkaColor.magenta)
+                    .frame(maxWidth: .infinity).padding(16)
+                    .background(TinkaColor.magenta.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(TinkaColor.magenta.opacity(0.35)))
+                }
+            }
+        }
+    }
+
     private var confirmButtons: some View {
         VStack(spacing: 12) {
             Button { confirmSale() } label: {
@@ -560,6 +656,10 @@ struct VoiceView: View {
                 if result.hasAmbiguity {
                     ambiguousCandidates = result.ambiguous
                     flowState = .ambiguous
+                } else if result.hasNewProductSuggestion {
+                    parsedProducts = result.confirmed
+                    newProductCandidates = result.newProducts
+                    flowState = .newProduct
                 } else {
                     parsedProducts = result.confirmed
                     flowState = .confirmed
@@ -591,6 +691,10 @@ struct VoiceView: View {
                                 if result.hasAmbiguity {
                                     ambiguousCandidates = result.ambiguous
                                     flowState = .ambiguous
+                                } else if result.hasNewProductSuggestion {
+                                    parsedProducts = result.confirmed
+                                    newProductCandidates = result.newProducts
+                                    flowState = .newProduct
                                 } else {
                                     parsedProducts = result.confirmed
                                     flowState = .confirmed
@@ -614,11 +718,35 @@ struct VoiceView: View {
         }
     }
 
+    private func addNewProductAndPrepareSale() {
+        guard !newProductCandidates.isEmpty else { return }
+        var saleProducts = parsedProducts
+        for candidate in newProductCandidates {
+            let product = CatalogProduct(
+                name: candidate.name,
+                price: candidate.price,
+                category: "Comida",
+                emoji: "🍽️",
+                description: "",
+                isActive: true,
+                aliases: [VoiceNormalizer.normalize(candidate.name)]
+            )
+            state.addProduct(product)
+            saleProducts.append(SaleProduct(name: product.name, qty: candidate.qty, price: product.price))
+        }
+        withAnimation(.spring(response: 0.45)) {
+            parsedProducts = saleProducts
+            newProductCandidates = []
+            flowState = .confirmed
+        }
+    }
+
     private func reset() {
         flowState = .idle
         speech.transcript = ""
         parsedProducts = []
         ambiguousCandidates = []
+        newProductCandidates = []
     }
 }
 

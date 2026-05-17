@@ -8,6 +8,25 @@ Full project documentation for presentation:
 
 `HACKATHON_DOCUMENTATION.md`
 
+## Voice catalog learning
+
+Tinka can learn new products directly from a voice sale. If the user says a product that is not in the current catalog and includes a price, the app proposes adding it to the catalog before confirming the sale.
+
+Supported examples:
+
+- `Vendí un pollo frito a doce bolivianos`
+- `Vendí un pollo frito a doce pesos`
+- `Vendí una fanta a 5`
+- `Vendí un pollo frito a doce bolivianos y una fanta a 5`
+
+When confirmed, Tinka:
+
+- adds each new product to the current user's catalog,
+- stores the detected price,
+- supports Bolivian daily speech such as `pesos`, `bolivianos`, and `bs`,
+- keeps any already-known products in the same sale,
+- prepares the full sale for final confirmation.
+
 ## Supabase hackathon setup
 
 For hackathon runs, disable email confirmation so registration returns a session immediately and avoids confirmation email rate limits:

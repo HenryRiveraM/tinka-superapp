@@ -85,6 +85,12 @@ struct ParsedMatch {
     }
 }
 
+struct NewProductCandidate: Equatable {
+    let name: String
+    let price: Double
+    let qty: Int
+}
+
 // MARK: - Voice Parser
 
 enum VoiceParser {
@@ -102,7 +108,7 @@ enum VoiceParser {
     /// Full parse returning high-confidence matches + low-confidence suggestions
     static func parse(_ raw: String) -> VoiceParseResult {
         let text = VoiceNormalizer.normalize(raw)
-        guard !text.isEmpty else { return VoiceParseResult(confirmed: [], ambiguous: []) }
+        guard !text.isEmpty else { return VoiceParseResult(confirmed: [], ambiguous: [], newProducts: []) }
 
         let catalog = AppState.shared.catalogProducts.filter { $0.isActive }
         let combos  = AppState.shared.combos.filter { $0.isActive }
@@ -166,6 +172,7 @@ enum VoiceParser {
             exactMatch(seg, entries: entries, usedNames: Set()) == nil
                 && !isGenericCombo(seg)
         }
+        var unknownProductSegments: [String] = []
         for seg in unmatchedSegs {
             let fuzzyHits = fuzzyMatch(seg, entries: entries, usedNames: usedNames)
             if fuzzyHits.count == 1 {
@@ -183,11 +190,17 @@ enum VoiceParser {
                     ParsedMatch(product: $0.product, qty: qty, confidence: .fuzzy)
                 }
                 ambiguousCandidates.append((query: seg, matches: candidates))
+            } else {
+                unknownProductSegments.append(seg)
             }
         }
 
         let merged = mergeDuplicates(confirmed)
-        return VoiceParseResult(confirmed: merged, ambiguous: ambiguousCandidates.first.map { $0.matches } ?? [])
+        let ambiguous = ambiguousCandidates.first.map { $0.matches } ?? []
+        let newProducts = ambiguous.isEmpty
+            ? mergeNewProductCandidates(unknownProductSegments.compactMap { inferNewProduct(from: $0) })
+            : []
+        return VoiceParseResult(confirmed: merged, ambiguous: ambiguous, newProducts: newProducts)
     }
 
     // MARK: - Private helpers
@@ -278,6 +291,104 @@ enum VoiceParser {
         return nil
     }
 
+    private static func detectPrice(in text: String) -> (price: Double, range: Range<String.Index>)? {
+        let units = "(?:bs|boliviano|bolivianos|peso|pesos)"
+        let numericPattern = #"(?:^|\s)(?:a|en|por|de|vale|cuesta|precio)?\s*(\d+(?:[.,]\d+)?)\s*"# + units
+        if let regex = try? NSRegularExpression(pattern: numericPattern, options: .caseInsensitive),
+           let match = regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).last,
+           let priceRange = Range(match.range(at: 1), in: text),
+           let fullRange = Range(match.range(at: 0), in: text) {
+            let raw = text[priceRange].replacingOccurrences(of: ",", with: ".")
+            if let price = Double(raw), price > 0 {
+                return (price, fullRange)
+            }
+        }
+
+        let numericWithoutUnitPattern = #"(?:^|\s)(?:a|en|por|vale|cuesta|precio)\s+(\d+(?:[.,]\d+)?)\s*$"#
+        if let regex = try? NSRegularExpression(pattern: numericWithoutUnitPattern, options: .caseInsensitive),
+           let match = regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).last,
+           let priceRange = Range(match.range(at: 1), in: text),
+           let fullRange = Range(match.range(at: 0), in: text) {
+            let raw = text[priceRange].replacingOccurrences(of: ",", with: ".")
+            if let price = Double(raw), price > 0 {
+                return (price, fullRange)
+            }
+        }
+
+        for (word, value) in numberWords {
+            let wordPattern = #"(?:^|\s)(?:a|en|por|de|vale|cuesta|precio)?\s*"# + word + #"\s*"# + units
+            if let range = text.range(of: wordPattern, options: .regularExpression) {
+                return (Double(value), range)
+            }
+        }
+
+        for (word, value) in numberWords {
+            let wordPattern = #"(?:^|\s)(?:a|en|por|vale|cuesta|precio)\s+"# + word + #"\s*$"#
+            if let range = text.range(of: wordPattern, options: .regularExpression) {
+                return (Double(value), range)
+            }
+        }
+        return nil
+    }
+
+    private static func inferNewProduct(from text: String) -> NewProductCandidate? {
+        guard let detectedPrice = detectPrice(in: text) else { return nil }
+        let qty = detectLeadingQuantity(in: text) ?? 1
+        var namePart = String(text[..<detectedPrice.range.lowerBound])
+        namePart = removeSaleFillers(from: namePart)
+        guard namePart.count >= 3 else { return nil }
+        let title = titleCaseProductName(namePart)
+        return NewProductCandidate(name: title, price: detectedPrice.price, qty: qty)
+    }
+
+    private static func detectLeadingQuantity(in text: String) -> Int? {
+        let words = text.components(separatedBy: .whitespaces)
+        let fillers = Set(["vendi", "vendí", "vende", "vendio", "vendió", "agrega", "agregar", "anota", "registre", "registra"])
+        for word in words {
+            if fillers.contains(word) { continue }
+            if let n = Int(word), n > 0, n <= 99 { return n }
+            if let pair = numberWords.first(where: { $0.0 == word }) { return pair.1 }
+            return nil
+        }
+        return nil
+    }
+
+    private static func removeSaleFillers(from text: String) -> String {
+        let fillers = Set([
+            "vendi", "vendí", "vende", "vendio", "vendió", "vender", "venta",
+            "agrega", "agregar", "anota", "registrar", "registra", "registre",
+            "un", "una", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete",
+            "ocho", "nueve", "diez", "once", "doce", "trece", "catorce", "quince",
+            "de", "del", "la", "el", "los", "las"
+        ])
+        return text.components(separatedBy: .whitespaces)
+            .filter { !fillers.contains($0) }
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func titleCaseProductName(_ text: String) -> String {
+        text.components(separatedBy: .whitespaces)
+            .filter { !$0.isEmpty }
+            .map { $0.prefix(1).uppercased() + $0.dropFirst() }
+            .joined(separator: " ")
+    }
+
+    private static func mergeNewProductCandidates(_ candidates: [NewProductCandidate]) -> [NewProductCandidate] {
+        var order: [String] = []
+        var totals: [String: (name: String, price: Double, qty: Int)] = [:]
+        for candidate in candidates {
+            let key = VoiceNormalizer.normalize(candidate.name)
+            if totals[key] == nil { order.append(key) }
+            let current = totals[key] ?? (candidate.name, candidate.price, 0)
+            totals[key] = (candidate.name, candidate.price, current.qty + candidate.qty)
+        }
+        return order.compactMap { key in
+            guard let value = totals[key] else { return nil }
+            return NewProductCandidate(name: value.name, price: value.price, qty: value.qty)
+        }
+    }
+
     private static func isGenericCombo(_ seg: String) -> Bool {
         let cleaned = seg.components(separatedBy: .whitespaces)
             .filter { !["un", "una", "uno", "dos", "tres", "cuatro", "cinco", "vendi", "vendí", "dame"].contains($0) }
@@ -307,7 +418,9 @@ struct VoiceParseResult {
     var confirmed: [SaleProduct]
     /// Fuzzy candidates needing user confirmation ("did you mean?")
     var ambiguous: [ParsedMatch]
+    var newProducts: [NewProductCandidate]
 
     var hasAmbiguity: Bool { !ambiguous.isEmpty }
-    var isEmpty: Bool { confirmed.isEmpty && ambiguous.isEmpty }
+    var hasNewProductSuggestion: Bool { !newProducts.isEmpty }
+    var isEmpty: Bool { confirmed.isEmpty && ambiguous.isEmpty && newProducts.isEmpty }
 }
