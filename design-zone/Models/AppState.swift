@@ -52,13 +52,29 @@ struct CatalogProduct: Identifiable, Codable {
     var emoji: String
     var description: String
     var isActive: Bool
+    /// User-defined voice aliases, e.g. ["silpancho", "silpanchos", "silpacho"]
+    var aliases: [String]
 
-    init(id: UUID = UUID(), name: String, price: Double, category: String, emoji: String, description: String = "", isActive: Bool = true) {
+    init(id: UUID = UUID(), name: String, price: Double, category: String,
+         emoji: String, description: String = "", isActive: Bool = true, aliases: [String] = []) {
         self.id = id; self.name = name; self.price = price; self.category = category
         self.emoji = emoji; self.description = description; self.isActive = isActive
+        self.aliases = aliases
     }
 
-    var keywords: [String] { [name.lowercased()] }
+    // All terms Tinka uses to recognize this product by voice
+    var allVoiceTerms: [String] {
+        var terms: [String] = []
+        let base = VoiceNormalizer.normalize(name)
+        terms.append(base)
+        terms.append(contentsOf: VoiceNormalizer.plurals(of: base))
+        for alias in aliases {
+            let a = VoiceNormalizer.normalize(alias)
+            terms.append(a)
+            terms.append(contentsOf: VoiceNormalizer.plurals(of: a))
+        }
+        return terms.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+    }
 }
 
 // MARK: - Combo
@@ -386,11 +402,21 @@ enum SeedData {
     }
 
     static var defaultProducts: [CatalogProduct] {[
-        CatalogProduct(name: "Salteña", price: 5, category: "Snack", emoji: "🫓", description: "Salteña tradicional boliviana"),
-        CatalogProduct(name: "Refresco", price: 4, category: "Bebida", emoji: "🥤", description: "Bebida fría"),
-        CatalogProduct(name: "Almuerzo", price: 15, category: "Plato", emoji: "🍱", description: "Menú del día completo"),
-        CatalogProduct(name: "Pique Macho", price: 35, category: "Especial", emoji: "🥩", description: "Pique macho tradicional"),
-        CatalogProduct(name: "Coca Cola", price: 12, category: "Bebida", emoji: "🥫", description: "Gaseosa personal"),
+        CatalogProduct(name: "Salteña", price: 5, category: "Snack", emoji: "🫓",
+                       description: "Salteña tradicional boliviana",
+                       aliases: ["salteña", "salteñas", "saltena", "saltenas"]),
+        CatalogProduct(name: "Refresco", price: 4, category: "Bebida", emoji: "🥤",
+                       description: "Bebida fría",
+                       aliases: ["refresco", "refrescos", "fresco", "frescos", "jugo", "jugos"]),
+        CatalogProduct(name: "Almuerzo", price: 15, category: "Plato", emoji: "🍱",
+                       description: "Menú del día completo",
+                       aliases: ["almuerzo", "almuerzos", "menu", "menú", "plato"]),
+        CatalogProduct(name: "Pique Macho", price: 35, category: "Especial", emoji: "🥩",
+                       description: "Pique macho tradicional",
+                       aliases: ["pique", "piques", "pique macho", "piques machos", "piquez"]),
+        CatalogProduct(name: "Coca Cola", price: 12, category: "Bebida", emoji: "🥫",
+                       description: "Gaseosa personal",
+                       aliases: ["coca cola", "coca", "cocas", "cola", "gaseosa", "gaseosas"]),
     ]}
 
     static var defaultCombos: [ProductCombo] {

@@ -29,6 +29,7 @@
 		C451C4B707F600372AED2D28 /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68AC5D6F6F0D8E88DD5FA3DB /* SampleData.swift */; };
 		C49D47737097022C60D36336 /* TinkaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A148217D48266BAD5A8A9C0 /* TinkaApp.swift */; };
 		C7EDB87B064BD659F723C8FF /* WeeklyTrendCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612C2C9C83BBFA562675FDBB /* WeeklyTrendCard.swift */; };
+		C8CBFA421205A43A219870D2 /* VoiceParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41A33DCA06578DCB829ED9E9 /* VoiceParser.swift */; };
 		D3C2D72DD613C63415198E53 /* ReportsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E195C77BF82CBCD88512A52A /* ReportsView.swift */; };
 		D827A2112CA28EB22BBAAAE2 /* TinkaScoreCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 992BBDF353627A9A7D41A991 /* TinkaScoreCard.swift */; };
 		DEA69761F8E952D2899FAED1 /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90F2C12BD4061F8419D9F367 /* SpeechRecognizer.swift */; };
@@ -42,6 +43,7 @@
 		1ACEB3234070AE003E6BF4B2 /* TinkaChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaChatView.swift; sourceTree = "<group>"; };
 		1EC3D77C58A44F9B9F90173A /* HomeDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeDashboardView.swift; sourceTree = "<group>"; };
 		378CE7BDFAD3BE200834E2E6 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		41A33DCA06578DCB829ED9E9 /* VoiceParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceParser.swift; sourceTree = "<group>"; };
 		44FC836039282F21A35A2243 /* TinkaTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TinkaTheme.swift; sourceTree = "<group>"; };
 		4D4E9A015949300902E15279 /* HomeHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeHeaderView.swift; sourceTree = "<group>"; };
 		5AA2F9211CC3AC79727D6FDB /* design-zone.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "design-zone.app"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -214,6 +216,7 @@
 			isa = PBXGroup;
 			children = (
 				90F2C12BD4061F8419D9F367 /* SpeechRecognizer.swift */,
+				41A33DCA06578DCB829ED9E9 /* VoiceParser.swift */,
 				D50D5D3D55D2E9082E9F47B6 /* VoiceView.swift */,
 			);
 			path = Voice;
@@ -309,6 +312,7 @@
 				D827A2112CA28EB22BBAAAE2 /* TinkaScoreCard.swift in Sources */,
 				70DEEB0CE4DE576301FD90F7 /* TinkaTabBar.swift in Sources */,
 				4EAF0E8E6350CB80D317877A /* TinkaTheme.swift in Sources */,
+				C8CBFA421205A43A219870D2 /* VoiceParser.swift in Sources */,
 				548E5AEAA24D67E919AEC597 /* VoiceView.swift in Sources */,
 				C7EDB87B064BD659F723C8FF /* WeeklyTrendCard.swift in Sources */,
 			);

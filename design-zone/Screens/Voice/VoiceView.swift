@@ -3,7 +3,7 @@ import Speech
 
 // MARK: - Flow State
 enum VoiceFlowState: Equatable {
-    case idle, listening, processing, confirmed, success
+    case idle, listening, processing, confirmed, ambiguous, success
 }
 
 // MARK: - Voice View
@@ -13,6 +13,7 @@ struct VoiceView: View {
 
     @State private var flowState: VoiceFlowState = .idle
     @State private var parsedProducts: [SaleProduct] = []
+    @State private var ambiguousCandidates: [ParsedMatch] = []
     @State private var showPermissionAlert = false
 
     var parsedTotal: Double { parsedProducts.reduce(0) { $0 + $1.subtotal } }
@@ -31,10 +32,7 @@ struct VoiceView: View {
             .padding(.horizontal, 24)
         }
         .onChange(of: speech.isListening) { _, isNow in
-            // Only auto-finish when real mic stops (not during simulation)
-            if !isNow && flowState == .listening {
-                finishListening()
-            }
+            if !isNow && flowState == .listening { finishListening() }
         }
         .onChange(of: speech.permissionDenied) { _, denied in
             if denied { showPermissionAlert = true }
@@ -53,22 +51,26 @@ struct VoiceView: View {
     private var immersiveBackground: some View {
         ZStack {
             Color(hex: "0A0F1E").ignoresSafeArea()
-            switch flowState {
-            case .listening:
-                RadialGradient(colors: [TinkaColor.magenta.opacity(0.35), Color.clear],
-                               center: .center, startRadius: 60, endRadius: 320).ignoresSafeArea()
-                    .animation(.easeInOut(duration: 1.2), value: flowState)
-            case .confirmed:
-                RadialGradient(colors: [TinkaColor.deepBlue.opacity(0.4), Color.clear],
-                               center: .center, startRadius: 60, endRadius: 320).ignoresSafeArea()
-            case .success:
-                RadialGradient(colors: [TinkaColor.green.opacity(0.45), Color.clear],
-                               center: .center, startRadius: 80, endRadius: 350).ignoresSafeArea()
-                    .animation(.easeIn(duration: 0.4), value: flowState)
-            default:
-                RadialGradient(colors: [TinkaColor.royalPurple.opacity(0.3), Color.clear],
-                               center: .center, startRadius: 60, endRadius: 300).ignoresSafeArea()
+            Group {
+                switch flowState {
+                case .listening:
+                    RadialGradient(colors: [TinkaColor.magenta.opacity(0.35), Color.clear],
+                                   center: .center, startRadius: 60, endRadius: 320).ignoresSafeArea()
+                case .ambiguous:
+                    RadialGradient(colors: [TinkaColor.yellow.opacity(0.3), Color.clear],
+                                   center: .center, startRadius: 60, endRadius: 300).ignoresSafeArea()
+                case .confirmed:
+                    RadialGradient(colors: [TinkaColor.deepBlue.opacity(0.4), Color.clear],
+                                   center: .center, startRadius: 60, endRadius: 320).ignoresSafeArea()
+                case .success:
+                    RadialGradient(colors: [TinkaColor.green.opacity(0.45), Color.clear],
+                                   center: .center, startRadius: 80, endRadius: 350).ignoresSafeArea()
+                default:
+                    RadialGradient(colors: [TinkaColor.royalPurple.opacity(0.3), Color.clear],
+                                   center: .center, startRadius: 60, endRadius: 300).ignoresSafeArea()
+                }
             }
+            .animation(.easeInOut(duration: 0.6), value: flowState)
         }
     }
 
@@ -93,6 +95,7 @@ struct VoiceView: View {
         case .idle:       return "Di lo que vendiste"
         case .listening:  return "Escuchando…"
         case .processing: return "Analizando tu voz…"
+        case .ambiguous:  return "¿Quisiste decir alguno de estos?"
         case .confirmed:  return "Tinka detectó esto"
         case .success:    return "¡Venta guardada!"
         }
@@ -104,6 +107,7 @@ struct VoiceView: View {
             case .idle:       return ("Listo", TinkaColor.subtleText)
             case .listening:  return ("● Escuchando", TinkaColor.magenta)
             case .processing: return ("Procesando", TinkaColor.yellow)
+            case .ambiguous:  return ("? Confirmar", TinkaColor.yellow)
             case .confirmed:  return ("Detectado", TinkaColor.deepBlue)
             case .success:    return ("✓ Guardado", TinkaColor.green)
             }
@@ -125,6 +129,7 @@ struct VoiceView: View {
         case .idle:       idleCenter
         case .listening:  listeningCenter
         case .processing: processingCenter
+        case .ambiguous:  ambiguousCard
         case .confirmed:  confirmationCard
         case .success:    successCenter
         }
@@ -158,7 +163,6 @@ struct VoiceView: View {
             ZStack {
                 Circle().fill(TinkaColor.royalPurple.opacity(0.15)).frame(width: 110, height: 110)
                 Circle().stroke(LinearGradient.tinkaPrimary, lineWidth: 3).frame(width: 110, height: 110)
-                    .rotationEffect(.degrees(0))
                 Image(systemName: "sparkles")
                     .font(.system(size: 44)).foregroundColor(TinkaColor.magenta)
                     .symbolEffect(.variableColor.iterative, options: .repeating)
@@ -173,7 +177,79 @@ struct VoiceView: View {
         .transition(.opacity.combined(with: .scale(scale: 0.95)))
     }
 
-    // MARK: - CONFIRMED (result card)
+    // MARK: - AMBIGUOUS ("Did you mean?")
+    private var ambiguousCard: some View {
+        VStack(spacing: 18) {
+            // Transcript quote
+            HStack(spacing: 10) {
+                Image(systemName: "quote.bubble.fill").foregroundColor(TinkaColor.yellow.opacity(0.8))
+                Text(speech.transcript.isEmpty ? "—" : "\"\(speech.transcript)\"")
+                    .font(.tinka(14)).foregroundColor(.white.opacity(0.75)).italic().lineLimit(2)
+                Spacer()
+            }
+            .padding(14)
+            .background(Color.white.opacity(0.06))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(TinkaColor.yellow.opacity(0.25)))
+
+            // Title
+            HStack(spacing: 8) {
+                Image(systemName: "questionmark.circle.fill")
+                    .foregroundColor(TinkaColor.yellow).font(.system(size: 18))
+                Text("No estoy segura, ¿quisiste decir?")
+                    .font(.tinka(15, weight: .bold)).foregroundColor(.white)
+            }
+
+            // Candidate buttons
+            VStack(spacing: 10) {
+                ForEach(ambiguousCandidates.prefix(4), id: \.product.id) { match in
+                    ambiguousButton(match: match)
+                }
+            }
+
+            Text("O toca **Reintentar** para volver a hablar")
+                .font(.tinka(12)).foregroundColor(.white.opacity(0.4))
+                .multilineTextAlignment(.center)
+        }
+        .padding(18)
+        .background(Color.white.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(TinkaColor.yellow.opacity(0.3)))
+        .transition(.asymmetric(insertion: .scale(scale: 0.92).combined(with: .opacity), removal: .opacity))
+    }
+
+    private func ambiguousButton(match: ParsedMatch) -> some View {
+        let qty = match.qty
+        let prod = match.product
+        return Button {
+            withAnimation(.spring(response: 0.4)) {
+                parsedProducts = [SaleProduct(name: prod.name, qty: qty, price: prod.price)]
+                flowState = .confirmed
+            }
+        } label: {
+            HStack(spacing: 14) {
+                Text(prod.emoji).font(.system(size: 26))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(prod.name).font(.tinka(15, weight: .bold)).foregroundColor(.white)
+                    Text("Bs. \(prod.price, specifier: "%.0f") c/u")
+                        .font(.tinka(12)).foregroundColor(.white.opacity(0.5))
+                }
+                Spacer()
+                HStack(spacing: 4) {
+                    Text("\(qty)×").font(.tinka(13, weight: .bold)).foregroundColor(TinkaColor.magenta)
+                    Text("Bs. \(prod.price * Double(qty), specifier: "%.0f")")
+                        .font(.tinka(13, weight: .bold)).foregroundColor(TinkaColor.deepBlue)
+                }
+                Image(systemName: "chevron.right").font(.system(size: 12)).foregroundColor(.white.opacity(0.3))
+            }
+            .padding(14)
+            .background(Color.white.opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(TinkaColor.yellow.opacity(0.2)))
+        }
+    }
+
+    // MARK: - CONFIRMED
     private var confirmationCard: some View {
         VStack(spacing: 16) {
             transcriptQuote
@@ -188,11 +264,9 @@ struct VoiceView: View {
 
     private var transcriptQuote: some View {
         HStack(spacing: 10) {
-            Image(systemName: "quote.bubble.fill")
-                .foregroundColor(TinkaColor.royalPurple.opacity(0.8))
+            Image(systemName: "quote.bubble.fill").foregroundColor(TinkaColor.royalPurple.opacity(0.8))
             Text(speech.transcript.isEmpty ? "—" : "\"\(speech.transcript)\"")
-                .font(.tinka(14)).foregroundColor(.white.opacity(0.75)).italic()
-                .lineLimit(2)
+                .font(.tinka(14)).foregroundColor(.white.opacity(0.75)).italic().lineLimit(2)
             Spacer()
         }
         .padding(14)
@@ -212,26 +286,12 @@ struct VoiceView: View {
             }
             if !parsedProducts.isEmpty {
                 ForEach(parsedProducts) { p in
-                    HStack(spacing: 10) {
-                        Text("\(p.qty)×").font(.tinka(22, weight: .black)).foregroundColor(TinkaColor.magenta)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(p.name).font(.tinka(16, weight: .semibold)).foregroundColor(.white)
-                            Text("Bs. \(p.price, specifier: "%.0f") c/u")
-                                .font(.tinka(12)).foregroundColor(.white.opacity(0.5))
-                        }
-                        Spacer()
-                        Text("Bs. \(p.subtotal, specifier: "%.0f")")
-                            .font(.tinka(16, weight: .bold)).foregroundColor(TinkaColor.deepBlue)
-                    }
-                    .padding(12)
-                    .background(Color.white.opacity(0.07))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    productRow(p)
                 }
                 Divider().background(Color.white.opacity(0.15))
                 HStack {
                     Text("TOTAL").font(.tinka(12, weight: .black))
-                        .foregroundColor(.white.opacity(0.55))
-                        .tracking(1.2)
+                        .foregroundColor(.white.opacity(0.55)).tracking(1.2)
                     Spacer()
                     Text("Bs. \(parsedTotal, specifier: "%.2f")")
                         .font(.tinka(26, weight: .black)).foregroundColor(TinkaColor.magenta)
@@ -241,9 +301,24 @@ struct VoiceView: View {
         .padding(18)
         .background(Color.white.opacity(0.05))
         .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(RoundedRectangle(cornerRadius: 20).stroke(
-            parsedProducts.isEmpty ? TinkaColor.red.opacity(0.4) : TinkaColor.green.opacity(0.4)
-        ))
+        .overlay(RoundedRectangle(cornerRadius: 20)
+            .stroke(parsedProducts.isEmpty ? TinkaColor.red.opacity(0.4) : TinkaColor.green.opacity(0.4)))
+    }
+
+    private func productRow(_ p: SaleProduct) -> some View {
+        HStack(spacing: 10) {
+            Text("\(p.qty)×").font(.tinka(22, weight: .black)).foregroundColor(TinkaColor.magenta)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(p.name).font(.tinka(16, weight: .semibold)).foregroundColor(.white)
+                Text("Bs. \(p.price, specifier: "%.0f") c/u").font(.tinka(12)).foregroundColor(.white.opacity(0.5))
+            }
+            Spacer()
+            Text("Bs. \(p.subtotal, specifier: "%.0f")")
+                .font(.tinka(16, weight: .bold)).foregroundColor(TinkaColor.deepBlue)
+        }
+        .padding(12)
+        .background(Color.white.opacity(0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private var retryHint: some View {
@@ -297,20 +372,16 @@ struct VoiceView: View {
         .padding(.horizontal, 4)
     }
 
-    // MARK: - Bottom Area (buttons)
+    // MARK: - Bottom Area
     @ViewBuilder
     private var bottomArea: some View {
         switch flowState {
-        case .idle:
-            examplePhrases
-        case .listening:
-            stopButton
-        case .processing:
-            Color.clear.frame(height: 60)
-        case .confirmed:
-            confirmButtons
-        case .success:
-            newSaleButton
+        case .idle:       examplePhrases
+        case .listening:  stopButton
+        case .processing: Color.clear.frame(height: 60)
+        case .ambiguous:  ambiguousBottomButtons
+        case .confirmed:  confirmButtons
+        case .success:    newSaleButton
         }
     }
 
@@ -341,13 +412,19 @@ struct VoiceView: View {
     private func buildExamples() -> [String] {
         let active = state.catalogProducts.filter { $0.isActive }.prefix(3)
         if active.isEmpty {
-            return ["Vendí tres salteñas y dos refrescos", "Una porción de almuerzo", "Dos Coca Colas"]
+            return ["Vendí tres salteñas y dos refrescos", "Una porción de almuerzo"]
         }
         var list: [String] = []
-        let names = active.map { $0.name }
-        if names.count >= 2 { list.append("Vendí dos \(names[0])s y un \(names[1])") }
-        if names.count >= 1 { list.append("Una porción de \(names[0])") }
-        if names.count >= 3 { list.append("Tres \(names[2])s") }
+        let prods = Array(active)
+        if prods.count >= 2 {
+            list.append("Vendí dos \(prods[0].name)s y un \(prods[1].name)")
+        }
+        if prods.count >= 1 {
+            list.append("Una porción de \(prods[0].name)")
+        }
+        if prods.count >= 3 {
+            list.append("Tres \(prods[2].name)s")
+        }
         return list
     }
 
@@ -362,6 +439,33 @@ struct VoiceView: View {
             .background(TinkaColor.magenta.opacity(0.85))
             .clipShape(RoundedRectangle(cornerRadius: 18))
             .overlay(RoundedRectangle(cornerRadius: 18).stroke(TinkaColor.magenta.opacity(0.5)))
+        }
+    }
+
+    private var ambiguousBottomButtons: some View {
+        HStack(spacing: 12) {
+            Button { reset() } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "xmark").font(.system(size: 13))
+                    Text("Cancelar").font(.tinka(15, weight: .medium))
+                }
+                .foregroundColor(.white.opacity(0.65))
+                .frame(maxWidth: .infinity).padding(16)
+                .background(Color.white.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.12)))
+            }
+            Button { startListening() } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "mic.fill").font(.system(size: 13))
+                    Text("Reintentar").font(.tinka(15, weight: .medium))
+                }
+                .foregroundColor(TinkaColor.magenta)
+                .frame(maxWidth: .infinity).padding(16)
+                .background(TinkaColor.magenta.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(TinkaColor.magenta.opacity(0.35)))
+            }
         }
     }
 
@@ -452,8 +556,13 @@ struct VoiceView: View {
             guard flowState == .processing else { return }
             let result = VoiceParser.parse(captured)
             withAnimation(.spring(response: 0.45)) {
-                parsedProducts = result
-                flowState = .confirmed
+                if result.hasAmbiguity {
+                    ambiguousCandidates = result.ambiguous
+                    flowState = .ambiguous
+                } else {
+                    parsedProducts = result.confirmed
+                    flowState = .confirmed
+                }
             }
         }
     }
@@ -466,7 +575,7 @@ struct VoiceView: View {
         let chars = Array(phrase)
         let total = chars.count
         for (i, ch) in chars.enumerated() {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.035) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.03) {
                 built.append(ch)
                 speech.transcript = built
                 if built.count == total {
@@ -475,10 +584,16 @@ struct VoiceView: View {
                         withAnimation { flowState = .processing }
                         let captured = speech.transcript
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            guard flowState == .processing else { return }
                             let result = VoiceParser.parse(captured)
                             withAnimation(.spring(response: 0.45)) {
-                                parsedProducts = result
-                                flowState = .confirmed
+                                if result.hasAmbiguity {
+                                    ambiguousCandidates = result.ambiguous
+                                    flowState = .ambiguous
+                                } else {
+                                    parsedProducts = result.confirmed
+                                    flowState = .confirmed
+                                }
                             }
                         }
                     }
@@ -502,6 +617,7 @@ struct VoiceView: View {
         flowState = .idle
         speech.transcript = ""
         parsedProducts = []
+        ambiguousCandidates = []
     }
 }
 
@@ -566,101 +682,8 @@ struct LiveWaveformView: View {
 
     private func startAnimating() {
         timer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { _ in
-            for i in 0..<heights.count {
-                heights[i] = CGFloat.random(in: 4...48)
-            }
+            for i in 0..<heights.count { heights[i] = CGFloat.random(in: 4...48) }
         }
-    }
-}
-
-// MARK: - Voice Parser (Dynamic Catalog)
-enum VoiceParser {
-    // Ordered: longer/more-specific entries first to avoid partial matches
-    private static let numberWords: [(String, Int)] = [
-        ("catorce", 14), ("quince", 15), ("trece", 13), ("doce", 12),
-        ("once", 11), ("diez", 10), ("nueve", 9), ("ocho", 8),
-        ("siete", 7), ("seis", 6), ("cinco", 5), ("cuatro", 4),
-        ("tres", 3), ("dos", 2), ("veinte", 20),
-        ("media", 1), ("una", 1), ("uno", 1), ("un", 1)
-    ]
-
-    static func parse(_ text: String) -> [SaleProduct] {
-        let t = normalized(text)
-        guard !t.isEmpty else { return [] }
-
-        let catalog = AppState.shared.catalogProducts.filter { $0.isActive }
-        let combos  = AppState.shared.combos.filter { $0.isActive }
-
-        var matchable: [(kws: [String], name: String, price: Double)] = []
-        for p in catalog { matchable.append((kws: keywords(p.name), name: p.name, price: p.price)) }
-        for c in combos  { matchable.append((kws: keywords(c.name), name: c.name, price: c.finalPrice)) }
-
-        // Split on connectors " y " and ","
-        let segments = t
-            .components(separatedBy: ",")
-            .flatMap { $0.components(separatedBy: " y ") }
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-
-        var results: [SaleProduct] = []
-        var usedNames = Set<String>()
-
-        for seg in segments {
-            for m in matchable where !usedNames.contains(m.name) {
-                guard m.kws.contains(where: { seg.contains($0) }) else { continue }
-                let qty = detectNumber(in: seg) ?? detectNumber(in: t) ?? 1
-                results.append(SaleProduct(name: m.name, qty: max(1, qty), price: m.price))
-                usedNames.insert(m.name)
-                break
-            }
-        }
-
-        // Fallback: scan full text if no segments matched
-        if results.isEmpty {
-            for m in matchable {
-                guard m.kws.contains(where: { t.contains($0) }) else { continue }
-                let qty = detectNumber(in: t) ?? 1
-                results.append(SaleProduct(name: m.name, qty: max(1, qty), price: m.price))
-                // Keep going for multi-product detection in fallback
-            }
-        }
-
-        return results
-    }
-
-    // Normalize: lowercase + remove diacritics
-    static func normalized(_ s: String) -> String {
-        s.lowercased().folding(options: .diacriticInsensitive, locale: .current)
-    }
-
-    static func keywords(_ name: String) -> [String] {
-        let base = normalized(name)
-        var kw = [base]
-        // Plural forms
-        if base.hasSuffix("a")  { kw.append(base + "s") }
-        else if base.hasSuffix("o") { kw.append(base + "s") }
-        else if base.hasSuffix("e") { kw.append(base + "s") }
-        else if base.hasSuffix("n") || base.hasSuffix("r") || base.hasSuffix("z") { kw.append(base + "es") }
-        else { kw.append(base + "s") }
-        // First word of multi-word names
-        let parts = base.components(separatedBy: " ")
-        if parts.count > 1 {
-            kw.append(contentsOf: [parts[0], parts[0] + "s"])
-        }
-        return kw
-    }
-
-    static func detectNumber(in text: String) -> Int? {
-        // Check digit words first
-        let words = text.components(separatedBy: .whitespaces)
-        for w in words { if let n = Int(w), n > 0, n <= 99 { return n } }
-        // Then Spanish number words (ordered longest first to avoid "un" matching "una")
-        for (word, value) in numberWords {
-            // Match as whole word using word boundaries (space or start/end)
-            let pattern = "(^|\\s)\(word)(\\s|$)"
-            if text.range(of: pattern, options: .regularExpression) != nil { return value }
-        }
-        return nil
     }
 }
 

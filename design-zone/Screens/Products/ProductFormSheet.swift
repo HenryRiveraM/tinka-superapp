@@ -12,6 +12,7 @@ struct ProductFormSheet: View {
     @State private var emoji = "🍽️"
     @State private var description = ""
     @State private var isActive = true
+    @State private var aliasesText = ""
     @State private var showEmojiPicker = false
     @State private var isSaving = false
 
@@ -56,6 +57,7 @@ struct ProductFormSheet: View {
         name = p.name; priceText = String(format: "%.0f", p.price)
         category = p.category; emoji = p.emoji
         description = p.description; isActive = p.isActive
+        aliasesText = p.aliases.joined(separator: ", ")
     }
 
     // MARK: - Emoji Section
@@ -131,6 +133,22 @@ struct ProductFormSheet: View {
 
             catalogFormField(label: "Descripción (opcional)", placeholder: "Describe el producto...", text: $description)
 
+            // Voice aliases field
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Image(systemName: "waveform").font(.system(size: 12)).foregroundColor(TinkaColor.magenta)
+                    Text("Palabras para reconocer por voz").font(.tinka(13, weight: .semibold)).foregroundColor(TinkaColor.subtleText)
+                }
+                TextField("silpancho, silpanchos, silpacho...", text: $aliasesText)
+                    .font(.tinka(14)).foregroundColor(TinkaColor.darkNavy)
+                    .padding(14)
+                    .background(Color.white.opacity(0.9))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(TinkaColor.magenta.opacity(0.3)))
+                Text("Separadas por coma. Tinka usará estas palabras para detectar este producto.")
+                    .font(.tinka(11)).foregroundColor(TinkaColor.subtleText).padding(.horizontal, 2)
+            }
+
             // Active toggle
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
@@ -154,11 +172,16 @@ struct ProductFormSheet: View {
     private func save() {
         guard let price = parsedPrice else { return }
         isSaving = true
+        let parsedAliases = aliasesText
+            .components(separatedBy: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
         let p = CatalogProduct(
             id: product?.id ?? UUID(),
             name: name.trimmingCharacters(in: .whitespaces),
             price: price, category: category,
-            emoji: emoji, description: description, isActive: isActive
+            emoji: emoji, description: description,
+            isActive: isActive, aliases: parsedAliases
         )
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
             onSave(p); isSaving = false; dismiss()
