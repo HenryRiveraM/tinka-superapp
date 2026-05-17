@@ -19,7 +19,8 @@ struct ProductFormSheet: View {
     private let quickEmojis = ["🫓","🥤","🍱","🥩","🥫","☕","🍔","🍕","🌮","🥗","🍜","🍰","🧁","🥞","🍟","🌯","🥙","🫔","🧆","🥚","🍦","🥧","🫕","🥘","🍲"]
 
     var isEditing: Bool { product != nil }
-    var isValid: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty && Double(priceText) != nil }
+    var parsedPrice: Double? { Double(priceText.replacingOccurrences(of: ",", with: ".")) }
+    var isValid: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty && parsedPrice != nil }
 
     var body: some View {
         NavigationView {
@@ -151,7 +152,7 @@ struct ProductFormSheet: View {
     }
 
     private func save() {
-        guard let price = Double(priceText) else { return }
+        guard let price = parsedPrice else { return }
         isSaving = true
         let p = CatalogProduct(
             id: product?.id ?? UUID(),

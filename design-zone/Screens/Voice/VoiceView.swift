@@ -31,7 +31,10 @@ struct VoiceView: View {
             .padding(.horizontal, 24)
         }
         .onChange(of: speech.isListening) { _, isNow in
-            if !isNow && flowState == .listening { finishListening() }
+            // Only auto-finish when real mic stops (not during simulation)
+            if !isNow && flowState == .listening {
+                finishListening()
+            }
         }
         .onChange(of: speech.permissionDenied) { _, denied in
             if denied { showPermissionAlert = true }
@@ -342,9 +345,9 @@ struct VoiceView: View {
         }
         var list: [String] = []
         let names = active.map { $0.name }
-        if names.count >= 2 { list.append("Vendí dos \(names[0].lowercased())s y un \(names[1].lowercased())") }
-        if names.count >= 1 { list.append("Una porción de \(names[0].lowercased())") }
-        if names.count >= 3 { list.append("Tres \(names[2].lowercased())s") }
+        if names.count >= 2 { list.append("Vendí dos \(names[0])s y un \(names[1])") }
+        if names.count >= 1 { list.append("Una porción de \(names[0])") }
+        if names.count >= 3 { list.append("Tres \(names[2])s") }
         return list
     }
 
@@ -446,6 +449,7 @@ struct VoiceView: View {
         withAnimation { flowState = .processing }
         let captured = speech.transcript
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            guard flowState == .processing else { return }
             let result = VoiceParser.parse(captured)
             withAnimation(.spring(response: 0.45)) {
                 parsedProducts = result
@@ -460,12 +464,24 @@ struct VoiceView: View {
         speech.transcript = ""
         var built = ""
         let chars = Array(phrase)
+        let total = chars.count
         for (i, ch) in chars.enumerated() {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.035) {
                 built.append(ch)
                 speech.transcript = built
-                if built.count == chars.count {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { finishListening() }
+                if built.count == total {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                        guard flowState == .listening else { return }
+                        withAnimation { flowState = .processing }
+                        let captured = speech.transcript
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            let result = VoiceParser.parse(captured)
+                            withAnimation(.spring(response: 0.45)) {
+                                parsedProducts = result
+                                flowState = .confirmed
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -559,16 +575,17 @@ struct LiveWaveformView: View {
 
 // MARK: - Voice Parser (Dynamic Catalog)
 enum VoiceParser {
+    // Ordered: longer/more-specific entries first to avoid partial matches
     private static let numberWords: [(String, Int)] = [
-        ("media ", 1), ("un ", 1), ("una ", 1), ("uno", 1),
-        ("dos", 2), ("tres", 3), ("cuatro", 4), ("cinco", 5),
-        ("seis", 6), ("siete", 7), ("ocho", 8), ("nueve", 9),
-        ("diez", 10), ("once", 11), ("doce", 12), ("trece", 13),
-        ("catorce", 14), ("quince", 15), ("veinte", 20)
+        ("catorce", 14), ("quince", 15), ("trece", 13), ("doce", 12),
+        ("once", 11), ("diez", 10), ("nueve", 9), ("ocho", 8),
+        ("siete", 7), ("seis", 6), ("cinco", 5), ("cuatro", 4),
+        ("tres", 3), ("dos", 2), ("veinte", 20),
+        ("media", 1), ("una", 1), ("uno", 1), ("un", 1)
     ]
 
     static func parse(_ text: String) -> [SaleProduct] {
-        let t = text.lowercased().trimmingCharacters(in: .whitespaces)
+        let t = normalized(text)
         guard !t.isEmpty else { return [] }
 
         let catalog = AppState.shared.catalogProducts.filter { $0.isActive }
@@ -578,55 +595,71 @@ enum VoiceParser {
         for p in catalog { matchable.append((kws: keywords(p.name), name: p.name, price: p.price)) }
         for c in combos  { matchable.append((kws: keywords(c.name), name: c.name, price: c.finalPrice)) }
 
-        // Split on connectors
-        let segments = t.components(separatedBy: .init(charactersIn: ","))
+        // Split on connectors " y " and ","
+        let segments = t
+            .components(separatedBy: ",")
             .flatMap { $0.components(separatedBy: " y ") }
             .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
 
         var results: [SaleProduct] = []
         var usedNames = Set<String>()
 
-        for seg in segments where !seg.isEmpty {
+        for seg in segments {
             for m in matchable where !usedNames.contains(m.name) {
-                if m.kws.contains(where: { seg.contains($0) }) {
-                    let qty = detectNumber(in: seg) ?? detectNumber(in: t) ?? 1
-                    results.append(SaleProduct(name: m.name, qty: qty, price: m.price))
-                    usedNames.insert(m.name)
-                    break
-                }
+                guard m.kws.contains(where: { seg.contains($0) }) else { continue }
+                let qty = detectNumber(in: seg) ?? detectNumber(in: t) ?? 1
+                results.append(SaleProduct(name: m.name, qty: max(1, qty), price: m.price))
+                usedNames.insert(m.name)
+                break
             }
         }
 
-        // Fallback: scan full text if segments found nothing
+        // Fallback: scan full text if no segments matched
         if results.isEmpty {
             for m in matchable {
-                if m.kws.contains(where: { t.contains($0) }) {
-                    let qty = detectNumber(in: t) ?? 1
-                    results.append(SaleProduct(name: m.name, qty: qty, price: m.price))
-                    break
-                }
+                guard m.kws.contains(where: { t.contains($0) }) else { continue }
+                let qty = detectNumber(in: t) ?? 1
+                results.append(SaleProduct(name: m.name, qty: max(1, qty), price: m.price))
+                // Keep going for multi-product detection in fallback
             }
         }
 
         return results
     }
 
-    private static func keywords(_ name: String) -> [String] {
-        let base = name.lowercased()
+    // Normalize: lowercase + remove diacritics
+    static func normalized(_ s: String) -> String {
+        s.lowercased().folding(options: .diacriticInsensitive, locale: .current)
+    }
+
+    static func keywords(_ name: String) -> [String] {
+        let base = normalized(name)
         var kw = [base]
+        // Plural forms
         if base.hasSuffix("a")  { kw.append(base + "s") }
-        else if base.hasSuffix("o") { kw.append(String(base.dropLast()) + "os") }
+        else if base.hasSuffix("o") { kw.append(base + "s") }
         else if base.hasSuffix("e") { kw.append(base + "s") }
+        else if base.hasSuffix("n") || base.hasSuffix("r") || base.hasSuffix("z") { kw.append(base + "es") }
         else { kw.append(base + "s") }
+        // First word of multi-word names
         let parts = base.components(separatedBy: " ")
-        if parts.count > 1 { kw.append(contentsOf: [parts[0], parts[0] + "s"]) }
+        if parts.count > 1 {
+            kw.append(contentsOf: [parts[0], parts[0] + "s"])
+        }
         return kw
     }
 
     static func detectNumber(in text: String) -> Int? {
+        // Check digit words first
         let words = text.components(separatedBy: .whitespaces)
-        for w in words { if let n = Int(w), n > 0 { return n } }
-        for (word, value) in numberWords { if text.contains(word) { return value } }
+        for w in words { if let n = Int(w), n > 0, n <= 99 { return n } }
+        // Then Spanish number words (ordered longest first to avoid "un" matching "una")
+        for (word, value) in numberWords {
+            // Match as whole word using word boundaries (space or start/end)
+            let pattern = "(^|\\s)\(word)(\\s|$)"
+            if text.range(of: pattern, options: .regularExpression) != nil { return value }
+        }
         return nil
     }
 }

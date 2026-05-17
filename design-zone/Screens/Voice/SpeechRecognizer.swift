@@ -34,6 +34,10 @@ class SpeechRecognizer: ObservableObject {
 
     func startListening() {
         guard !isListening else { return }
+        guard recognizer != nil else {
+            self.error = "Reconocimiento de voz no disponible en este dispositivo."
+            return
+        }
         transcript = ""
         error = nil
         do {

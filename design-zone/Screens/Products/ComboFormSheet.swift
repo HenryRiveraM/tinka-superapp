@@ -16,7 +16,7 @@ struct ComboFormSheet: View {
 
     var isEditing: Bool { combo != nil }
     var regularTotal: Double { selectedItems.reduce(0) { $0 + $1.totalPrice } }
-    var finalPrice: Double { Double(finalPriceText) ?? 0 }
+    var finalPrice: Double { Double(finalPriceText.replacingOccurrences(of: ",", with: ".")) ?? 0 }
     var isValid: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
         && finalPrice > 0
@@ -198,7 +198,7 @@ struct ComboFormSheet: View {
     }
 
     private func save() {
-        guard let price = Double(finalPriceText) else { return }
+        guard let price = Double(finalPriceText.replacingOccurrences(of: ",", with: ".")) else { return }
         isSaving = true
         let c = ProductCombo(
             id: combo?.id ?? UUID(),
