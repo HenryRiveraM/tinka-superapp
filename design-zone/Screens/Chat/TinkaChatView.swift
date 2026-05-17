@@ -219,9 +219,13 @@ struct TinkaChatView: View {
                     }
                 }
             } catch {
+                NSLog("[Tinka Chat] AI failed, using local fallback: \(error.localizedDescription)")
+                let fallback = TinkaLocalAI.reply(for: trimmed, state: state)
                 await MainActor.run {
-                    isTyping = false
-                    errorMessage = error.localizedDescription
+                    withAnimation {
+                        isTyping = false
+                        state.chatMessages.append(ChatMessage(text: fallback, isUser: false))
+                    }
                 }
             }
         }
