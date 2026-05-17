@@ -7,7 +7,6 @@ struct TinkaTabBar: View {
         (.home,     "house.fill",              "Inicio"),
         (.sales,    "cart.fill",               "Ventas"),
         (.voice,    "mic.fill",                "Voz"),
-        (.chat,     "sparkles",                "IA"),
         (.products, "tag.fill",                "Catálogo"),
         (.reports,  "chart.bar.doc.horizontal","Reportes"),
         (.profile,  "person.fill",             "Perfil")
@@ -19,15 +18,25 @@ struct TinkaTabBar: View {
                 tabButton(tab: item.0, icon: item.1, label: item.2)
             }
         }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 5)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 7)
         .background(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
+            RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(.ultraThinMaterial)
-                .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(Color.white.opacity(0.55)))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
+                        .fill(
+                            LinearGradient(colors: [
+                                Color.white.opacity(0.88),
+                                Color.white.opacity(0.70),
+                                TinkaColor.magenta.opacity(0.08)
+                            ], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        )
+                )
         )
-        .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).stroke(Color.white.opacity(0.7), lineWidth: 1))
-        .shadow(color: TinkaColor.royalPurple.opacity(0.18), radius: 20, x: 0, y: 8)
+        .overlay(RoundedRectangle(cornerRadius: 30, style: .continuous).stroke(Color.white.opacity(0.92), lineWidth: 1))
+        .shadow(color: TinkaColor.royalPurple.opacity(0.16), radius: 24, x: 0, y: 10)
+        .shadow(color: Color.black.opacity(0.06), radius: 10, x: 0, y: 4)
     }
 
     @ViewBuilder
@@ -48,21 +57,43 @@ struct TinkaTabBar: View {
     }
 
     private func standardButton(icon: String, label: String, isSelected: Bool) -> some View {
-        VStack(spacing: 2) {
-            Image(systemName: icon).font(.system(size: 14, weight: .semibold))
-            Text(label).font(.tinka(8, weight: .semibold))
+        VStack(spacing: 4) {
+            ZStack {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 13, style: .continuous)
+                        .fill(LinearGradient.tinkaPrimary)
+                        .frame(width: 34, height: 30)
+                        .shadow(color: TinkaColor.magenta.opacity(0.35), radius: 8, y: 3)
+                }
+                Image(systemName: icon)
+                    .font(.system(size: 14, weight: .bold))
+            }
+            Text(label)
+                .font(.tinka(8, weight: .bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
         }
-        .foregroundStyle(isSelected ? AnyShapeStyle(LinearGradient.tinkaPrimary) : AnyShapeStyle(TinkaColor.subtleText))
-        .padding(.vertical, 7).padding(.horizontal, 2)
+        .foregroundStyle(isSelected ? .white : TinkaColor.subtleText)
+        .frame(height: 50)
+        .padding(.horizontal, 1)
     }
 
     private func voiceButton(isSelected: Bool) -> some View {
         ZStack {
-            Circle().fill(LinearGradient.tinkaPrimary).frame(width: 44, height: 44)
-                .shadow(color: TinkaColor.magenta.opacity(0.5), radius: 12, x: 0, y: 5)
-            Image(systemName: "mic.fill").font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
+            Circle()
+                .fill(Color.white.opacity(0.96))
+                .frame(width: 58, height: 58)
+                .overlay(Circle().stroke(Color.white.opacity(0.95), lineWidth: 1))
+                .shadow(color: TinkaColor.royalPurple.opacity(0.18), radius: 10, y: 5)
+            Circle()
+                .fill(LinearGradient.tinkaPrimary)
+                .frame(width: 48, height: 48)
+                .shadow(color: TinkaColor.magenta.opacity(0.5), radius: 14, x: 0, y: 6)
+            Image(systemName: "mic.fill")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(.white)
         }
-        .offset(y: -6)
+        .offset(y: -8)
         .scaleEffect(isSelected ? 1.08 : 1.0)
         .animation(.spring(response: 0.3), value: isSelected)
     }

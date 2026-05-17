@@ -26,7 +26,7 @@ struct ComboFormSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                LinearGradient.tinkaSoftBackground.ignoresSafeArea()
+                TinkaBackgroundView(style: .light)
                 ScrollView {
                     VStack(spacing: 20) {
                         emojiSection

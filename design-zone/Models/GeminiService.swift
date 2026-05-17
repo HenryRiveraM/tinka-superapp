@@ -28,11 +28,37 @@ actor GeminiService {
         return localAnswer
     }
 
+    func insights(businessContext: String, state: AppState) async -> [String] {
+        let fallback = TinkaLocalAI.insights(for: state)
+        do {
+            let remote = try await callEdgeWithTimeout(
+                userMessage: "Genera 3 insights cortos y accionables para este negocio. Responde solo una lista, una recomendación por línea, sin markdown.",
+                businessContext: businessContext,
+                timeout: 8.0
+            )
+            let parsed = remote
+                .components(separatedBy: .newlines)
+                .map { line in
+                    line.replacingOccurrences(of: #"^\s*[-•\d.)]+\s*"#,
+                                               with: "",
+                                               options: .regularExpression)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                .filter { !$0.isEmpty }
+            return Array(parsed.prefix(3)).isEmpty ? fallback : Array(parsed.prefix(3))
+        } catch {
+            NSLog("[Tinka AI] Gemini insights unavailable (\(error.localizedDescription)), using local.")
+            return fallback
+        }
+    }
+
     private func callEdgeWithTimeout(userMessage: String, businessContext: String, timeout: TimeInterval) async throws -> String {
         var request = URLRequest(url: endpointURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
+        request.setValue(anonKey, forHTTPHeaderField: "apikey")
+        let token = await SupabaseREST.shared.accessToken ?? anonKey
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = timeout
 
         let body: [String: String] = ["message": userMessage, "context": businessContext]
@@ -98,7 +124,7 @@ enum TinkaLocalAI {
             return catalogSummary(state)
         }
         if matches(q, ["gracias", "perfecto", "excelente", "genial", "bien"]) {
-            return "¡De nada, Doña María! 😊 Aquí estaré cuando me necesites. ¡Sigamos creciendo juntas! 🚀"
+            return "¡De nada, \(state.ownerDisplayName)! 😊 Aquí estaré cuando me necesites. ¡Sigamos creciendo!"
         }
         if matches(q, ["hola", "buenas", "buenos dias", "buenas tardes"]) {
             return greeting(state)
@@ -108,6 +134,32 @@ enum TinkaLocalAI {
         return businessOverview(state)
     }
 
+    static func insights(for s: AppState) -> [String] {
+        var items: [String] = []
+        if s.todaySales == 0 {
+            items.append("Aún no registraste ventas hoy. Usa Voz o Ventas para mantener tus métricas al día.")
+        } else {
+            items.append("Hoy llevas Bs. \(Int(s.todaySales)) en \(s.todaySaleCount) venta(s). Tu ticket promedio semanal es Bs. \(Int(s.averageTicket)).")
+        }
+
+        if let top = s.topProductsSummary.first {
+            items.append("\(top.name) es tu producto líder con \(top.qty) unidades vendidas. Dale prioridad en combos y promociones.")
+        } else if let first = s.catalogProducts.first(where: { $0.isActive }) {
+            items.append("Empieza registrando ventas de \(first.name) para detectar tus productos más fuertes.")
+        }
+
+        if s.combos.filter({ $0.isActive }).isEmpty {
+            items.append("Crea un combo con tus productos activos para subir el ticket promedio.")
+        } else {
+            items.append("Tienes \(s.combos.filter { $0.isActive }.count) combo(s) activo(s). Promociónalos en horas de mayor venta.")
+        }
+
+        if s.tinkaScore < 70 {
+            items.append("Tu score puede subir registrando ventas todos los días y manteniendo el catálogo activo.")
+        }
+        return Array(items.prefix(3))
+    }
+
     // MARK: - Intents
 
     private static func greeting(_ s: AppState) -> String {
@@ -115,9 +167,9 @@ enum TinkaLocalAI {
         let saludo = hour < 12 ? "¡Buenos días" : hour < 19 ? "¡Buenas tardes" : "¡Buenas noches"
         let today = s.todaySales
         if today == 0 {
-            return "\(saludo), Doña María! 👋 Hoy aún no hay ventas registradas. ¿Empezamos? Usa el micrófono 🎤 o registra desde Ventas."
+            return "\(saludo), \(s.ownerDisplayName)! Hoy aún no hay ventas registradas. ¿Empezamos? Usa el micrófono o registra desde Ventas."
         }
-        return "\(saludo), Doña María! Llevas **Bs. \(Int(today))** hoy. Score: **\(s.tinkaScore)/100**. ¿En qué te ayudo? 🌟"
+        return "\(saludo), \(s.ownerDisplayName)! Llevas **Bs. \(Int(today))** hoy. Score: **\(s.tinkaScore)/100**. ¿En qué te ayudo?"
     }
 
     private static func dailySummary(_ s: AppState) -> String {
@@ -125,7 +177,7 @@ enum TinkaLocalAI {
         let count = s.todaySaleCount
         let util = Int(today * 0.35)
         if today == 0 {
-            return "📅 Hoy todavía no hay ventas registradas, Doña María.\n¡Comienza con el micrófono 🎤 o desde la pantalla de Ventas!"
+            return "📅 Hoy todavía no hay ventas registradas, \(s.ownerDisplayName).\n¡Comienza con el micrófono o desde la pantalla de Ventas!"
         }
         let extra = today >= 300 ? "¡Excelente jornada! 🏆" : today >= 150 ? "¡Vas muy bien! 💪" : "Sigue adelante, cada venta cuenta 🌱"
         return "📅 **Resumen de hoy:**\n• Ventas: Bs. \(Int(today)) en \(count) transacción(es)\n• Utilidad estimada: Bs. \(util)\n• Estado: \(s.financialStatus)\n\n\(extra)"
@@ -236,7 +288,7 @@ enum TinkaLocalAI {
         }
         tips.append("💬 Pide a tus clientes frecuentes que recomienden tu local")
 
-        var msg = "🚀 **Mis recomendaciones para Doña María:**\n"
+        var msg = "🚀 **Mis recomendaciones para \(s.businessDisplayName):**\n"
         for (i, t) in tips.prefix(4).enumerated() { msg += "\(i+1). \(t)\n" }
         msg += "\nTu score actual es **\(score)/100** — \(score >= 80 ? "¡Nivel excelente! 🏆" : "sigamos mejorando juntas 💪")"
         return msg
@@ -261,7 +313,8 @@ enum TinkaLocalAI {
         let month = s.monthSales
         let util = Int(s.utilityEstimate)
         let monthUtil = Int(month * 0.35)
-        return "💵 **Análisis de ganancias:**\n• Esta semana: Bs. \(Int(week)) → Utilidad: **Bs. \(util)**\n• Este mes: Bs. \(Int(month)) → Utilidad: **Bs. \(monthUtil)**\n• Margen estimado: **35%**\n\n\(util > 500 ? "🏆 ¡Excelente margen esta semana!" : "💪 Sigue vendiendo para aumentar tu utilidad.")\n\n💡 Para mejorar el margen: sube el precio de productos con alta demanda o crea combos con mejor margen."
+        let marginLine = "• Margen estimado: **35%**"
+        return "💵 **Análisis de ganancias:**\n• Esta semana: Bs. \(Int(week)) → Utilidad: **Bs. \(util)**\n• Este mes: Bs. \(Int(month)) → Utilidad: **Bs. \(monthUtil)**\n\(marginLine)\n\n\(util > 500 ? "🏆 ¡Excelente margen esta semana!" : "💪 Sigue vendiendo para aumentar tu utilidad.")\n\n💡 Para mejorar el margen: sube el precio de productos con alta demanda o crea combos con mejor margen."
     }
 
     private static func catalogSummary(_ s: AppState) -> String {

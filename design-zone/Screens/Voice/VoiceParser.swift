@@ -107,17 +107,22 @@ enum VoiceParser {
         let catalog = AppState.shared.catalogProducts.filter { $0.isActive }
         let combos  = AppState.shared.combos.filter { $0.isActive }
 
-        // Build matchable entries: (terms, name, price, emoji)
-        var entries: [(terms: [String], name: String, price: Double, emoji: String)] = []
+        // Build matchable entries: products and combos share the same voice pipeline.
+        var entries: [(id: UUID, terms: [String], name: String, price: Double, emoji: String)] = []
         for p in catalog {
-            entries.append((terms: p.allVoiceTerms, name: p.name, price: p.price, emoji: p.emoji))
+            entries.append((id: p.id, terms: p.allVoiceTerms, name: p.name, price: p.price, emoji: p.emoji))
         }
         for c in combos {
             let base = VoiceNormalizer.normalize(c.name)
             var terms = [base] + VoiceNormalizer.plurals(of: base)
+            for alias in c.aliases {
+                let normalized = VoiceNormalizer.normalize(alias)
+                terms.append(normalized)
+                terms.append(contentsOf: VoiceNormalizer.plurals(of: normalized))
+            }
             let parts = base.components(separatedBy: " ")
             if parts.count > 1 { terms.append(contentsOf: [parts[0], parts[0] + "s"]) }
-            entries.append((terms: terms, name: c.name, price: c.finalPrice, emoji: c.emoji))
+            entries.append((id: c.id, terms: Array(Set(terms)), name: c.name, price: c.finalPrice, emoji: c.emoji))
         }
 
         // Split on connectors
@@ -129,6 +134,16 @@ enum VoiceParser {
         // Pass 1: exact term matching per segment
         for seg in segments {
             let qty = detectNumber(in: seg) ?? detectNumber(in: text) ?? 1
+            if isGenericCombo(seg), combos.count > 1 {
+                let candidates = combos.map {
+                    ParsedMatch(product: CatalogProduct(id: $0.id, name: $0.name, price: $0.finalPrice,
+                                                        category: "Combo", emoji: $0.emoji,
+                                                        aliases: $0.aliases),
+                                qty: qty, confidence: .fuzzy)
+                }
+                ambiguousCandidates.append((query: seg, matches: candidates))
+                continue
+            }
             if let match = exactMatch(seg, entries: entries, usedNames: usedNames) {
                 confirmed.append(SaleProduct(name: match.name, qty: qty, price: match.price))
                 usedNames.insert(match.name)
@@ -148,8 +163,8 @@ enum VoiceParser {
 
         // Pass 3: fuzzy matching on each segment token for unmatched content
         let unmatchedSegs = segments.filter { seg in
-            !confirmed.contains { SaleProduct(name: $0.name, qty: 1, price: $0.price).name == $0.name } &&
             exactMatch(seg, entries: entries, usedNames: Set()) == nil
+                && !isGenericCombo(seg)
         }
         for seg in unmatchedSegs {
             let fuzzyHits = fuzzyMatch(seg, entries: entries, usedNames: usedNames)
@@ -171,7 +186,8 @@ enum VoiceParser {
             }
         }
 
-        return VoiceParseResult(confirmed: confirmed, ambiguous: ambiguousCandidates.first.map { $0.matches } ?? [])
+        let merged = mergeDuplicates(confirmed)
+        return VoiceParseResult(confirmed: merged, ambiguous: ambiguousCandidates.first.map { $0.matches } ?? [])
     }
 
     // MARK: - Private helpers
@@ -186,7 +202,7 @@ enum VoiceParser {
 
     private static func exactMatch(
         _ seg: String,
-        entries: [(terms: [String], name: String, price: Double, emoji: String)],
+        entries: [(id: UUID, terms: [String], name: String, price: Double, emoji: String)],
         usedNames: Set<String>
     ) -> (name: String, price: Double)? {
         for entry in entries where !usedNames.contains(entry.name) {
@@ -207,7 +223,7 @@ enum VoiceParser {
 
     private static func fuzzyMatch(
         _ seg: String,
-        entries: [(terms: [String], name: String, price: Double, emoji: String)],
+        entries: [(id: UUID, terms: [String], name: String, price: Double, emoji: String)],
         usedNames: Set<String>
     ) -> [ParsedMatch] {
         // Extract meaningful tokens (skip number words and filler)
@@ -216,12 +232,19 @@ enum VoiceParser {
                            "vende", "vendio", "de", "del", "la", "el", "los", "las", "una", "y", "mas"])
         let tokens = seg.components(separatedBy: .whitespaces)
             .filter { $0.count >= 3 && !fillers.contains($0) }
+        let query = tokens.joined(separator: " ")
 
         var hits: [ParsedMatch] = []
         let catalog = AppState.shared.catalogProducts.filter { $0.isActive }
 
         for entry in entries where !usedNames.contains(entry.name) {
             var bestDist = Int.max
+            if !query.isEmpty {
+                for term in entry.terms {
+                    bestDist = min(bestDist, Levenshtein.distance(query, term))
+                    if term.contains(query) || query.contains(term) { bestDist = min(bestDist, 0) }
+                }
+            }
             for token in tokens {
                 for term in entry.terms {
                     let d = Levenshtein.distance(token, term)
@@ -234,7 +257,7 @@ enum VoiceParser {
             let threshold = max(1, maxLen / 4)
             if bestDist <= threshold {
                 let prod = catalog.first { $0.name == entry.name }
-                    ?? CatalogProduct(name: entry.name, price: entry.price,
+                    ?? CatalogProduct(id: entry.id, name: entry.name, price: entry.price,
                                       category: "", emoji: "", description: "")
                 hits.append(ParsedMatch(product: prod, qty: 1,
                                         confidence: bestDist == 0 ? .exact : .fuzzy))
@@ -254,6 +277,27 @@ enum VoiceParser {
         }
         return nil
     }
+
+    private static func isGenericCombo(_ seg: String) -> Bool {
+        let cleaned = seg.components(separatedBy: .whitespaces)
+            .filter { !["un", "una", "uno", "dos", "tres", "cuatro", "cinco", "vendi", "vendí", "dame"].contains($0) }
+            .joined(separator: " ")
+        return cleaned == "combo" || cleaned == "combos"
+    }
+
+    private static func mergeDuplicates(_ products: [SaleProduct]) -> [SaleProduct] {
+        var order: [String] = []
+        var totals: [String: (qty: Int, price: Double)] = [:]
+        for product in products {
+            if totals[product.name] == nil { order.append(product.name) }
+            let current = totals[product.name] ?? (0, product.price)
+            totals[product.name] = (current.qty + product.qty, product.price)
+        }
+        return order.compactMap { name in
+            guard let value = totals[name] else { return nil }
+            return SaleProduct(name: name, qty: value.qty, price: value.price)
+        }
+    }
 }
 
 // MARK: - Parse Result Type
@@ -264,6 +308,6 @@ struct VoiceParseResult {
     /// Fuzzy candidates needing user confirmation ("did you mean?")
     var ambiguous: [ParsedMatch]
 
-    var hasAmbiguity: Bool { !ambiguous.isEmpty && confirmed.isEmpty }
+    var hasAmbiguity: Bool { !ambiguous.isEmpty }
     var isEmpty: Bool { confirmed.isEmpty && ambiguous.isEmpty }
 }

@@ -9,10 +9,11 @@ struct ProductCatalogView: View {
     @State private var selectedTab = 0
     @State private var deleteProductAlert: CatalogProduct? = nil
     @State private var deleteComboAlert: ProductCombo? = nil
+    @State private var isSeedingStarterCatalog = false
 
     var body: some View {
         ZStack {
-            LinearGradient.tinkaSoftBackground.ignoresSafeArea()
+            TinkaBackgroundView(style: .light)
             VStack(spacing: 0) {
                 catalogHeader
                 segmentPicker
@@ -117,6 +118,9 @@ struct ProductCatalogView: View {
                 if state.catalogProducts.isEmpty {
                     emptyProductsState
                 } else {
+                    if shouldShowStarterSeedCard {
+                        starterSeedCard
+                    }
                     productsByCategory
                 }
             }
@@ -151,20 +155,86 @@ struct ProductCatalogView: View {
         VStack(spacing: 16) {
             Text("🛍️").font(.system(size: 52))
             Text("Sin productos aún").font(.tinka(18, weight: .semibold)).foregroundColor(TinkaColor.darkNavy)
-            Text("Toca **Nuevo** para agregar tu primer producto")
+            Text("Agrega tu primer producto o carga productos base para comenzar.")
                 .font(.tinka(14)).foregroundColor(TinkaColor.subtleText).multilineTextAlignment(.center)
-            Button { showAddProduct = true } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "plus").font(.system(size: 14, weight: .bold))
-                    Text("Crear primer producto").font(.tinka(15, weight: .bold))
+            HStack(spacing: 10) {
+                Button { showAddProduct = true } label: {
+                    Label("Crear producto", systemImage: "plus")
+                        .font(.tinka(14, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16).padding(.vertical, 12)
+                        .background(LinearGradient.tinkaPrimary)
+                        .clipShape(Capsule())
                 }
-                .foregroundColor(.white)
-                .padding(.horizontal, 20).padding(.vertical, 12)
-                .background(LinearGradient.tinkaPrimary)
-                .clipShape(Capsule())
+                Button { Task { await seedStarterCatalog() } } label: {
+                    HStack(spacing: 6) {
+                        if isSeedingStarterCatalog { ProgressView().tint(TinkaColor.deepBlue).scaleEffect(0.75) }
+                        else { Image(systemName: "sparkles") }
+                        Text("Cargar base")
+                    }
+                    .font(.tinka(14, weight: .bold))
+                    .foregroundColor(TinkaColor.deepBlue)
+                    .padding(.horizontal, 16).padding(.vertical, 12)
+                    .background(Color.white.opacity(0.85))
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(TinkaColor.cardStroke))
+                }
+                .disabled(isSeedingStarterCatalog)
             }
         }
         .padding(.top, 60)
+    }
+
+    private var shouldShowStarterSeedCard: Bool {
+        state.catalogProducts.count < 4 || state.combos.isEmpty
+    }
+
+    private var starterSeedCard: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle().fill(TinkaColor.magenta.opacity(0.14)).frame(width: 42, height: 42)
+                Image(systemName: "sparkles").foregroundStyle(TinkaColor.magenta)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Completar catálogo base")
+                    .font(.tinka(14, weight: .bold))
+                    .foregroundColor(TinkaColor.darkNavy)
+                Text("Agrega Salteña, Refresco, Silpancho y combos sin duplicar.")
+                    .font(.tinka(12))
+                    .foregroundColor(TinkaColor.subtleText)
+                    .lineLimit(2)
+            }
+            Spacer()
+            Button { Task { await seedStarterCatalog() } } label: {
+                if isSeedingStarterCatalog {
+                    ProgressView().tint(.white).scaleEffect(0.75)
+                } else {
+                    Text("Cargar").font(.tinka(12, weight: .bold))
+                }
+            }
+            .frame(width: 76, height: 34)
+            .foregroundColor(.white)
+            .background(LinearGradient.tinkaPrimary)
+            .clipShape(Capsule())
+            .disabled(isSeedingStarterCatalog)
+        }
+        .padding(14)
+        .background(Color.white.opacity(0.88))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(TinkaColor.cardStroke))
+    }
+
+    @MainActor
+    private func seedStarterCatalog() async {
+        guard !isSeedingStarterCatalog else { return }
+        isSeedingStarterCatalog = true
+        do {
+            try await AuthService.shared.seedStarterCatalogForCurrentUser()
+            await state.loadFromSupabase()
+        } catch {
+            NSLog("[Catalog] Starter catalog seed failed: \(error.localizedDescription)")
+        }
+        isSeedingStarterCatalog = false
     }
 
     // MARK: - Combo List
@@ -275,20 +345,30 @@ struct ProductRowCard: View {
     }
 
     private var priceAndActions: some View {
-        VStack(alignment: .trailing, spacing: 8) {
+        VStack(alignment: .trailing, spacing: 7) {
             Text("Bs. \(product.price, specifier: "%.0f")")
                 .font(.tinka(16, weight: .bold)).foregroundColor(TinkaColor.deepBlue)
-            // Visible edit button
-            Button(action: onEdit) {
-                HStack(spacing: 4) {
-                    Image(systemName: "pencil").font(.system(size: 11, weight: .bold))
-                    Text("Editar").font(.tinka(11, weight: .semibold))
+            HStack(spacing: 7) {
+                Button(action: onEdit) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "pencil").font(.system(size: 11, weight: .bold))
+                        Text("Editar").font(.tinka(11, weight: .semibold))
+                    }
+                    .foregroundColor(TinkaColor.royalPurple)
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(TinkaColor.royalPurple.opacity(0.1))
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(TinkaColor.royalPurple.opacity(0.25)))
                 }
-                .foregroundColor(TinkaColor.royalPurple)
-                .padding(.horizontal, 10).padding(.vertical, 5)
-                .background(TinkaColor.royalPurple.opacity(0.1))
-                .clipShape(Capsule())
-                .overlay(Capsule().stroke(TinkaColor.royalPurple.opacity(0.25)))
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(TinkaColor.red)
+                        .frame(width: 28, height: 28)
+                        .background(TinkaColor.red.opacity(0.08))
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(TinkaColor.red.opacity(0.2)))
+                }
             }
         }
     }

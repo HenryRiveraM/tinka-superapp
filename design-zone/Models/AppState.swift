@@ -147,37 +147,50 @@ class AppState: ObservableObject {
     @Published var chatMessages: [ChatMessage] = []
     @Published var catalogProducts: [CatalogProduct] = []
     @Published var combos: [ProductCombo] = []
+    @Published var businessProfile: DBBusinessProfile? = nil
     @Published var isLoadingData = false
 
-    init() {
-        loadLocal()
-    }
+    init() {}
 
     // MARK: - Load from Supabase (call after login)
+    @MainActor
     func loadFromSupabase() async {
-        await MainActor.run { isLoadingData = true }
+        isLoadingData = true
         let svc = TinkaDataService.shared
         async let prods = (try? svc.fetchProducts()) ?? []
         async let combosVal = (try? svc.fetchCombos()) ?? []
         async let salesVal = (try? svc.fetchSales()) ?? []
         async let chat = (try? svc.fetchChatMessages()) ?? []
         let (p, c, s, ch) = await (prods, combosVal, salesVal, chat)
-        await MainActor.run {
-            if !p.isEmpty { catalogProducts = p }
-            if !c.isEmpty { combos = c }
-            sales = s
-            if !ch.isEmpty { chatMessages = ch }
-            isLoadingData = false
+        catalogProducts = p
+        combos = c
+        sales = s
+        chatMessages = ch
+        isLoadingData = false
+        let profile = try? await svc.fetchProfile()
+        if let profile {
+            businessProfile = profile
+            persistBusinessProfile()
+        } else {
+            businessProfile = nil
+            UserDefaults.standard.removeObject(forKey: "tinka_business_profile_v1")
         }
     }
 
     // MARK: - Clear on sign out
     func clearAll() {
         sales = []; chatMessages = []; catalogProducts = []; combos = []
+        businessProfile = nil
         UserDefaults.standard.removeObject(forKey: "tinka_sales_v2")
         UserDefaults.standard.removeObject(forKey: "tinka_chat_v2")
         UserDefaults.standard.removeObject(forKey: "tinka_catalog_v1")
         UserDefaults.standard.removeObject(forKey: "tinka_combos_v1")
+        UserDefaults.standard.removeObject(forKey: "tinka_business_profile_v1")
+    }
+
+    func upsertLocalBusinessProfile(_ profile: DBBusinessProfile) {
+        businessProfile = profile
+        persistBusinessProfile()
     }
 
     // MARK: - Local fallback
@@ -190,6 +203,8 @@ class AppState: ObservableObject {
            let v = try? JSONDecoder().decode([SaleItem].self, from: d) { sales = v }
         if let d = UserDefaults.standard.data(forKey: "tinka_chat_v2"),
            let v = try? JSONDecoder().decode([ChatMessage].self, from: d) { chatMessages = v }
+        if let d = UserDefaults.standard.data(forKey: "tinka_business_profile_v1"),
+           let v = try? JSONDecoder().decode(DBBusinessProfile.self, from: d) { businessProfile = v }
     }
 
     // MARK: - Computed properties
@@ -217,7 +232,9 @@ class AppState: ObservableObject {
         return sales.filter { $0.date >= start }.reduce(0) { $0 + $1.total }
     }
 
-    var utilityEstimate: Double { weekSales * 0.35 }
+    var utilityEstimate: Double {
+        weekSales * 0.35
+    }
 
     var averageTicket: Double {
         let week = salesForPeriod(.week)
@@ -243,14 +260,14 @@ class AppState: ObservableObject {
 
     var financialStatus: String {
         if todaySales >= 300 { return "Saludable" }
-        if todaySales >= 100 { return "Regular" }
-        return "Riesgo"
+        if todaySales > 0 || weekSales > 0 { return "En crecimiento" }
+        return "Iniciando"
     }
 
     var financialStatusColor: Color {
         if todaySales >= 300 { return TinkaColor.green }
-        if todaySales >= 100 { return TinkaColor.yellow }
-        return TinkaColor.red
+        if todaySales > 0 || weekSales > 0 { return TinkaColor.yellow }
+        return TinkaColor.deepBlue
     }
 
     var tinkaScore: Int {
@@ -284,7 +301,7 @@ class AppState: ObservableObject {
         let activeProducts = catalogProducts.filter { $0.isActive }.map { "\($0.name) (Bs. \($0.price))" }.joined(separator: ", ")
         let activeCombos = combos.filter { $0.isActive }.map { "\($0.name) (Bs. \($0.finalPrice))" }.joined(separator: ", ")
         return """
-Contexto del negocio de Doña María:
+Contexto del negocio \(businessDisplayName), atendido por \(ownerDisplayName):
 - Ventas hoy: Bs. \(Int(todaySales)) (\(todaySaleCount) ventas)
 - Ventas esta semana: Bs. \(Int(weekSales)) (\(weekSaleCount) ventas)
 - Ventas este mes: Bs. \(Int(monthSales))
@@ -298,6 +315,16 @@ Contexto del negocio de Doña María:
 - Combos activos: \(activeCombos.isEmpty ? "sin combos" : activeCombos)
 - Tendencia semanal (últ. 7 días): \(dailyTrend.map { "\($0.day):\(Int($0.value))" }.joined(separator: ", "))
 """
+    }
+
+    var ownerDisplayName: String {
+        let name = businessProfile?.ownerName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return name.isEmpty ? "la vendedora" : name
+    }
+
+    var businessDisplayName: String {
+        let name = businessProfile?.businessName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return name.isEmpty ? "Mi negocio" : name
     }
 
     // MARK: - Actions
@@ -344,9 +371,36 @@ Contexto del negocio de Doña María:
     }
 
     func deleteProduct(_ id: UUID) {
-        withAnimation { catalogProducts.removeAll { $0.id == id } }
+        let affectedCombos = combos.filter { combo in
+            combo.items.contains { $0.productId == id }
+        }
+        var combosToUpdate: [ProductCombo] = []
+        var combosToDelete: [UUID] = []
+
+        withAnimation {
+            catalogProducts.removeAll { $0.id == id }
+            for combo in affectedCombos {
+                guard let index = combos.firstIndex(where: { $0.id == combo.id }) else { continue }
+                combos[index].items.removeAll { $0.productId == id }
+                if combos[index].items.isEmpty {
+                    combosToDelete.append(combos[index].id)
+                } else {
+                    combosToUpdate.append(combos[index])
+                }
+            }
+            combos.removeAll { combosToDelete.contains($0.id) }
+        }
         persistCatalog()
-        Task { try? await TinkaDataService.shared.deleteProduct(id: id) }
+        persistCombos()
+        Task {
+            for combo in combosToUpdate {
+                try? await TinkaDataService.shared.upsertCombo(combo)
+            }
+            for comboId in combosToDelete {
+                try? await TinkaDataService.shared.deleteCombo(id: comboId)
+            }
+            try? await TinkaDataService.shared.deleteProduct(id: id)
+        }
     }
 
     func toggleProduct(_ id: UUID) {
@@ -403,6 +457,12 @@ Contexto del negocio de Doña María:
     func persistCombos() {
         guard let data = try? JSONEncoder().encode(combos) else { return }
         UserDefaults.standard.set(data, forKey: "tinka_combos_v1")
+    }
+
+    func persistBusinessProfile() {
+        guard let businessProfile,
+              let data = try? JSONEncoder().encode(businessProfile) else { return }
+        UserDefaults.standard.set(data, forKey: "tinka_business_profile_v1")
     }
 }
 

@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum TinkaTab: Hashable {
-    case home, sales, voice, chat, products, reports, profile
+    case home, sales, voice, products, reports, profile
 }
 
 struct RootView: View {
@@ -25,17 +25,17 @@ struct RootView: View {
     // MARK: - Splash
     private var splashScreen: some View {
         ZStack {
-            LinearGradient(colors: [Color(hex: "0A0F1E"), Color(hex: "1A0F3E")],
-                           startPoint: .top, endPoint: .bottom).ignoresSafeArea()
-            VStack(spacing: 16) {
-                ZStack {
-                    Circle().fill(LinearGradient.tinkaPrimary).frame(width: 90, height: 90)
-                        .shadow(color: TinkaColor.magenta.opacity(0.5), radius: 24)
-                    Text("T").font(.tinka(48, weight: .black)).foregroundColor(.white)
-                }
-                Text("Tinka").font(.tinka(36, weight: .black)).foregroundColor(.white)
-                ProgressView().tint(TinkaColor.magenta).scaleEffect(1.2).padding(.top, 8)
+            Color.black.ignoresSafeArea()
+            VStack(spacing: 34) {
+                Spacer()
+                TinkaSplashLogo()
+                ProgressView()
+                    .tint(.white)
+                    .scaleEffect(1.05)
+                    .opacity(0.85)
+                Spacer()
             }
+            .offset(y: 34)
         }
     }
 
@@ -46,18 +46,21 @@ struct RootView: View {
             TinkaTabBar(selected: $selectedTab)
                 .padding(.horizontal, 10).padding(.bottom, 8)
         }
-        .background(LinearGradient.tinkaSoftBackground.ignoresSafeArea())
+        .background(TinkaBackgroundView(style: .light))
         .environmentObject(appState)
         .ignoresSafeArea(.keyboard)
+        .task(id: auth.isLoggedIn) {
+            guard auth.isLoggedIn else { return }
+            await appState.loadFromSupabase()
+        }
     }
 
     @ViewBuilder
     private var tabContent: some View {
         switch selectedTab {
-        case .home:     HomeDashboardView()
+        case .home:     HomeDashboardView(selectedTab: $selectedTab)
         case .sales:    SalesView()
         case .voice:    VoiceView()
-        case .chat:     TinkaChatView()
         case .products: ProductCatalogView()
         case .reports:  ReportsView()
         case .profile:  ProfileView()

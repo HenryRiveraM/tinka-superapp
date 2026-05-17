@@ -26,7 +26,7 @@ struct AddSaleSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                LinearGradient.tinkaSoftBackground.ignoresSafeArea()
+                TinkaBackgroundView(style: .light)
                 VStack(spacing: 0) {
                     handle
                     ScrollView(showsIndicators: false) {

@@ -5,13 +5,16 @@ struct AIInsight: Identifiable {
     let icon: String
     let title: String
     let tint: Color
-}
+    let actionTitle: String?
+    let targetTab: TinkaTab?
 
-struct QuickAction: Identifiable {
-    let id = UUID()
-    let icon: String
-    let title: String
-    let gradient: [Color]
+    init(icon: String, title: String, tint: Color, actionTitle: String? = nil, targetTab: TinkaTab? = nil) {
+        self.icon = icon
+        self.title = title
+        self.tint = tint
+        self.actionTitle = actionTitle
+        self.targetTab = targetTab
+    }
 }
 
 struct SalesPoint: Identifiable {
@@ -21,9 +24,6 @@ struct SalesPoint: Identifiable {
 }
 
 enum TinkaSampleData {
-    static let userName = "Doña María"
-    static let business = "Salteñas Doña María"
-
     static let todaySales: Double = 480
     static let weekRevenue: Double = 3120
     static let profit: Double = 1240
@@ -39,16 +39,4 @@ enum TinkaSampleData {
         .init(day: "D", value: 320)
     ]
 
-    static let insights: [AIInsight] = [
-        .init(icon: "chart.line.uptrend.xyaxis", title: "Los viernes vendes 42% más refrescos", tint: TinkaColor.magenta),
-        .init(icon: "exclamationmark.triangle.fill", title: "Tus gastos aumentaron 18% esta semana", tint: TinkaColor.yellow),
-        .init(icon: "sparkles", title: "Tus salteñas generan mejor margen (62%)", tint: TinkaColor.green)
-    ]
-
-    static let quickActions: [QuickAction] = [
-        .init(icon: "mic.fill", title: "Registrar\npor voz", gradient: [TinkaColor.magenta, TinkaColor.royalPurple]),
-        .init(icon: "plus.circle.fill", title: "Nueva\nventa", gradient: [TinkaColor.deepBlue, TinkaColor.royalPurple]),
-        .init(icon: "minus.circle.fill", title: "Registrar\ngasto", gradient: [Color(hex: "0EA5E9"), TinkaColor.deepBlue]),
-        .init(icon: "sparkle", title: "Chat con\nTinka IA", gradient: [TinkaColor.royalPurple, TinkaColor.magenta])
-    ]
 }

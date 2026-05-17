@@ -27,7 +27,9 @@ class TinkaDataService {
     }
 
     func deleteProduct(id: UUID) async throws {
-        try await rest.delete(table: "products", filters: ["id": id.uuidString])
+        guard let uid = await userId else { return }
+        try await rest.delete(table: "combo_items", filters: ["product_id": id.uuidString, "user_id": uid])
+        try await rest.delete(table: "products", filters: ["id": id.uuidString, "user_id": uid])
     }
 
     // MARK: - Combos
@@ -45,8 +47,9 @@ class TinkaDataService {
     }
 
     func fetchComboItems(comboId: String) async throws -> [ComboItem] {
+        guard let uid = await userId else { return [] }
         let rows: [DBComboItem] = try await rest.select(table: "combo_items",
-                                                         filters: ["combo_id": comboId])
+                                                         filters: ["combo_id": comboId, "user_id": uid])
         return rows.map { toComboItem($0) }
     }
 
@@ -56,10 +59,10 @@ class TinkaDataService {
                           price: c.finalPrice, emoji: c.emoji,
                           aliases: c.aliases, active: c.isActive)
         try await rest.upsert(table: "combos", row: row)
-        try await rest.delete(table: "combo_items", filters: ["combo_id": c.id.uuidString])
+        try await rest.delete(table: "combo_items", filters: ["combo_id": c.id.uuidString, "user_id": uid])
         if !c.items.isEmpty {
             let items = c.items.map {
-                DBComboItem(id: $0.id.uuidString, comboId: c.id.uuidString,
+                DBComboItem(id: $0.id.uuidString, userId: uid, comboId: c.id.uuidString,
                             productId: $0.productId.uuidString,
                             productName: $0.productName, quantity: $0.qty)
             }
@@ -68,7 +71,8 @@ class TinkaDataService {
     }
 
     func deleteCombo(id: UUID) async throws {
-        try await rest.delete(table: "combos", filters: ["id": id.uuidString])
+        guard let uid = await userId else { return }
+        try await rest.delete(table: "combos", filters: ["id": id.uuidString, "user_id": uid])
     }
 
     // MARK: - Sales
@@ -93,7 +97,7 @@ class TinkaDataService {
         try await rest.insert(table: "sales", row: saleRow)
         if !s.products.isEmpty {
             let items = s.products.map { p in
-                DBSaleItem(id: p.id.uuidString, saleId: s.id.uuidString,
+                DBSaleItem(id: p.id.uuidString, userId: uid, saleId: s.id.uuidString,
                            productId: nil, comboId: nil,
                            itemName: p.name, quantity: p.qty,
                            unitPrice: p.price, subtotal: p.subtotal)
@@ -103,12 +107,14 @@ class TinkaDataService {
     }
 
     func deleteSale(id: UUID) async throws {
-        try await rest.delete(table: "sales", filters: ["id": id.uuidString])
+        guard let uid = await userId else { return }
+        try await rest.delete(table: "sales", filters: ["id": id.uuidString, "user_id": uid])
     }
 
     private func fetchSaleItems(saleId: String) async throws -> [SaleProduct] {
+        guard let uid = await userId else { return [] }
         let rows: [DBSaleItem] = try await rest.select(table: "sale_items",
-                                                        filters: ["sale_id": saleId])
+                                                        filters: ["sale_id": saleId, "user_id": uid])
         return rows.map { SaleProduct(id: UUID(uuidString: $0.id) ?? UUID(),
                                       name: $0.itemName, qty: $0.quantity, price: $0.unitPrice) }
     }

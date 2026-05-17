@@ -1,10 +1,11 @@
 import SwiftUI
+import UIKit
 
 struct ReportsView: View {
     @EnvironmentObject var state: AppState
     @State private var selectedPeriod: AppPeriod = .week
     @State private var showShareSheet = false
-    @State private var reportText = ""
+    @State private var shareItems: [Any] = []
 
     private var filtered: [SaleItem] { state.salesForPeriod(selectedPeriod) }
     private var filteredTotal: Double { filtered.reduce(0) { $0 + $1.total } }
@@ -30,15 +31,12 @@ struct ReportsView: View {
             }
         }
         .sheet(isPresented: $showShareSheet) {
-            ShareSheet(activityItems: [reportText])
+            ShareSheet(activityItems: shareItems)
         }
     }
 
     private var background: some View {
-        ZStack {
-            LinearGradient.tinkaSoftBackground.ignoresSafeArea()
-            Circle().fill(TinkaColor.deepBlue.opacity(0.12)).frame(width: 300).blur(radius: 90).offset(x: -120, y: -180)
-        }
+        TinkaBackgroundView(style: .light)
     }
 
     private var reportHeader: some View {
@@ -49,8 +47,7 @@ struct ReportsView: View {
             }
             Spacer()
             Button {
-                reportText = generateReportText()
-                showShareSheet = true
+                exportPDF()
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "square.and.arrow.up").font(.system(size: 13, weight: .semibold))
@@ -229,7 +226,7 @@ struct ReportsView: View {
         return """
         📊 REPORTE TINKA - \(selectedPeriod.rawValue.uppercased())
         Fecha: \(fmt.string(from: Date()))
-        Negocio: Salteñas Doña María
+        Negocio: \(state.businessDisplayName)
         ─────────────────────────
         💰 Total vendido: Bs. \(Int(filteredTotal))
         🛒 Número de ventas: \(filteredCount)
@@ -245,6 +242,24 @@ struct ReportsView: View {
         Generado por Tinka App
         """
     }
+
+    private func exportPDF() {
+        let url = ReportPDFExporter.makePDF(
+            title: "Reporte Tinka - \(selectedPeriod.rawValue)",
+            businessName: state.businessDisplayName,
+            period: selectedPeriod.rawValue,
+            total: filteredTotal,
+            count: filteredCount,
+            ticket: filteredTicket,
+            utility: filteredUtility,
+            score: state.tinkaScore,
+            status: state.financialStatus,
+            topProducts: Array(productStats.prefix(5)),
+            fallbackReport: generateReportText()
+        )
+        shareItems = [url ?? generateReportText()]
+        showShareSheet = true
+    }
 }
 
 // MARK: - Product Stat
@@ -257,6 +272,98 @@ struct ShareSheet: UIViewControllerRepresentable {
         UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
     }
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+enum ReportPDFExporter {
+    static func makePDF(title: String,
+                        businessName: String,
+                        period: String,
+                        total: Double,
+                        count: Int,
+                        ticket: Double,
+                        utility: Double,
+                        score: Int,
+                        status: String,
+                        topProducts: [ProductStat],
+                        fallbackReport: String) -> URL? {
+        let pageRect = CGRect(x: 0, y: 0, width: 612, height: 792)
+        let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Tinka-\(UUID().uuidString)")
+            .appendingPathExtension("pdf")
+
+        do {
+            try renderer.writePDF(to: url) { context in
+                context.beginPage()
+                let margin: CGFloat = 48
+                let navy = UIColor(red: 0.06, green: 0.08, blue: 0.16, alpha: 1)
+                let purple = UIColor(red: 0.43, green: 0.14, blue: 0.78, alpha: 1)
+                let magenta = UIColor(red: 0.82, green: 0.08, blue: 0.52, alpha: 1)
+                let gray = UIColor(red: 0.43, green: 0.47, blue: 0.56, alpha: 1)
+
+                func draw(_ text: String, x: CGFloat, y: CGFloat, w: CGFloat, h: CGFloat,
+                          size: CGFloat, weight: UIFont.Weight, color: UIColor = navy) {
+                    text.draw(in: CGRect(x: x, y: y, width: w, height: h), withAttributes: [
+                        .font: UIFont.systemFont(ofSize: size, weight: weight),
+                        .foregroundColor: color
+                    ])
+                }
+
+                let headerRect = CGRect(x: margin, y: margin, width: pageRect.width - margin * 2, height: 96)
+                let path = UIBezierPath(roundedRect: headerRect, cornerRadius: 20)
+                purple.setFill()
+                path.fill()
+                magenta.withAlphaComponent(0.32).setFill()
+                UIBezierPath(ovalIn: CGRect(x: headerRect.maxX - 130, y: headerRect.minY - 24, width: 170, height: 170)).fill()
+                draw("TINKA", x: margin + 22, y: margin + 18, w: 150, h: 22, size: 13, weight: .bold, color: .white.withAlphaComponent(0.85))
+                draw(title, x: margin + 22, y: margin + 42, w: 360, h: 34, size: 24, weight: .bold, color: .white)
+                draw(businessName, x: margin + 22, y: margin + 72, w: 320, h: 18, size: 12, weight: .semibold, color: .white.withAlphaComponent(0.82))
+
+                let dateFormatter = DateFormatter()
+                dateFormatter.locale = Locale(identifier: "es_BO")
+                dateFormatter.dateStyle = .medium
+                draw(dateFormatter.string(from: Date()), x: headerRect.maxX - 150, y: margin + 24, w: 128, h: 20, size: 12, weight: .semibold, color: .white)
+                draw(period.uppercased(), x: headerRect.maxX - 150, y: margin + 48, w: 128, h: 20, size: 12, weight: .bold, color: .white.withAlphaComponent(0.88))
+
+                let metricsY = headerRect.maxY + 28
+                let cardW = (pageRect.width - margin * 2 - 18) / 2
+                metricCard(title: "Total vendido", value: "Bs. \(Int(total))", x: margin, y: metricsY, w: cardW)
+                metricCard(title: "Ventas", value: "\(count)", x: margin + cardW + 18, y: metricsY, w: cardW)
+                metricCard(title: "Utilidad estimada", value: "Bs. \(Int(utility))", x: margin, y: metricsY + 88, w: cardW)
+                metricCard(title: "Ticket promedio", value: "Bs. \(Int(ticket))", x: margin + cardW + 18, y: metricsY + 88, w: cardW)
+
+                draw("Top productos", x: margin, y: metricsY + 205, w: 220, h: 24, size: 18, weight: .bold)
+                if topProducts.isEmpty {
+                    draw("Sin ventas registradas en este período.", x: margin, y: metricsY + 238, w: 360, h: 20, size: 12, weight: .regular, color: gray)
+                } else {
+                    for (idx, item) in topProducts.enumerated() {
+                        let y = metricsY + 238 + CGFloat(idx * 34)
+                        draw("\(idx + 1). \(item.name)", x: margin, y: y, w: 250, h: 22, size: 13, weight: .semibold)
+                        draw("\(item.qty) uds · Bs. \(Int(item.revenue))", x: pageRect.width - margin - 160, y: y, w: 160, h: 22, size: 12, weight: .medium, color: gray)
+                    }
+                }
+
+                let scoreY = pageRect.height - margin - 82
+                draw("Tinka Score", x: margin, y: scoreY, w: 150, h: 24, size: 16, weight: .bold)
+                draw("\(score)/100 · \(status)", x: margin, y: scoreY + 28, w: 240, h: 24, size: 14, weight: .semibold, color: purple)
+                draw("Generado por Tinka App", x: pageRect.width - margin - 160, y: scoreY + 34, w: 160, h: 18, size: 11, weight: .medium, color: gray)
+
+                func metricCard(title: String, value: String, x: CGFloat, y: CGFloat, w: CGFloat) {
+                    let rect = CGRect(x: x, y: y, width: w, height: 70)
+                    UIColor.white.setFill()
+                    UIBezierPath(roundedRect: rect, cornerRadius: 16).fill()
+                    UIColor(red: 0.88, green: 0.89, blue: 0.94, alpha: 1).setStroke()
+                    UIBezierPath(roundedRect: rect, cornerRadius: 16).stroke()
+                    draw(title, x: x + 16, y: y + 14, w: w - 32, h: 18, size: 11, weight: .semibold, color: gray)
+                    draw(value, x: x + 16, y: y + 34, w: w - 32, h: 26, size: 20, weight: .bold, color: navy)
+                }
+            }
+            return url
+        } catch {
+            NSLog("[Reports] PDF export failed: \(fallbackReport)")
+            return nil
+        }
+    }
 }
 
 // MARK: - Report Chart Card

@@ -7,7 +7,7 @@ struct PlaceholderScreen: View {
 
     var body: some View {
         ZStack {
-            LinearGradient.tinkaSoftBackground.ignoresSafeArea()
+            TinkaBackgroundView(style: .light)
             VStack(spacing: 20) {
                 ZStack {
                     Circle()

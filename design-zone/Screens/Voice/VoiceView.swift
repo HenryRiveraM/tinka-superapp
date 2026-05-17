@@ -50,27 +50,22 @@ struct VoiceView: View {
     // MARK: - Background
     private var immersiveBackground: some View {
         ZStack {
-            Color(hex: "0A0F1E").ignoresSafeArea()
-            Group {
-                switch flowState {
-                case .listening:
-                    RadialGradient(colors: [TinkaColor.magenta.opacity(0.35), Color.clear],
-                                   center: .center, startRadius: 60, endRadius: 320).ignoresSafeArea()
-                case .ambiguous:
-                    RadialGradient(colors: [TinkaColor.yellow.opacity(0.3), Color.clear],
-                                   center: .center, startRadius: 60, endRadius: 300).ignoresSafeArea()
-                case .confirmed:
-                    RadialGradient(colors: [TinkaColor.deepBlue.opacity(0.4), Color.clear],
-                                   center: .center, startRadius: 60, endRadius: 320).ignoresSafeArea()
-                case .success:
-                    RadialGradient(colors: [TinkaColor.green.opacity(0.45), Color.clear],
-                                   center: .center, startRadius: 80, endRadius: 350).ignoresSafeArea()
-                default:
-                    RadialGradient(colors: [TinkaColor.royalPurple.opacity(0.3), Color.clear],
-                                   center: .center, startRadius: 60, endRadius: 300).ignoresSafeArea()
-                }
-            }
+            TinkaBackgroundView(style: .voice)
+            LinearGradient(colors: [voiceAccent.opacity(0.22), .clear, voiceAccent.opacity(0.12)],
+                           startPoint: .topLeading,
+                           endPoint: .bottomTrailing)
+                .ignoresSafeArea()
             .animation(.easeInOut(duration: 0.6), value: flowState)
+        }
+    }
+
+    private var voiceAccent: Color {
+        switch flowState {
+        case .listening: return TinkaColor.magenta
+        case .ambiguous: return TinkaColor.yellow
+        case .confirmed: return TinkaColor.deepBlue
+        case .success: return TinkaColor.green
+        default: return TinkaColor.royalPurple
         }
     }
 
@@ -412,20 +407,26 @@ struct VoiceView: View {
     private func buildExamples() -> [String] {
         let active = state.catalogProducts.filter { $0.isActive }.prefix(3)
         if active.isEmpty {
-            return ["Vendí tres salteñas y dos refrescos", "Una porción de almuerzo"]
+            return ["Vendí tres salteñas y dos refrescos", "Vendí un combo almuerzo"]
         }
         var list: [String] = []
         let prods = Array(active)
         if prods.count >= 2 {
-            list.append("Vendí dos \(prods[0].name)s y un \(prods[1].name)")
+            list.append("Vendí dos \(pluralName(prods[0].name)) y un \(prods[1].name)")
         }
         if prods.count >= 1 {
             list.append("Una porción de \(prods[0].name)")
         }
-        if prods.count >= 3 {
-            list.append("Tres \(prods[2].name)s")
+        if let combo = state.combos.first(where: { $0.isActive }) {
+            list.append("Vendí un \(combo.name)")
+        } else if prods.count >= 3 {
+            list.append("Tres \(pluralName(prods[2].name))")
         }
         return list
+    }
+
+    private func pluralName(_ name: String) -> String {
+        name.lowercased().hasSuffix("s") ? name : "\(name)s"
     }
 
     private var stopButton: some View {

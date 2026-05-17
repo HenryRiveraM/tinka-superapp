@@ -24,8 +24,15 @@ struct HeroBalanceCard: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 28, style: .continuous).fill(LinearGradient.tinkaPrimary)
-            Circle().fill(Color.white.opacity(0.15)).frame(width: 180).offset(x: 140, y: -70)
-            Circle().fill(Color.white.opacity(0.08)).frame(width: 120).offset(x: -130, y: 60)
+            LinearGradient(colors: [Color.white.opacity(0.18), .clear],
+                           startPoint: .topTrailing,
+                           endPoint: .bottomLeading)
+                .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            Rectangle()
+                .fill(Color.white.opacity(0.08))
+                .frame(height: 92)
+                .rotationEffect(.degrees(-10))
+                .offset(y: -82)
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
                     Label("Ventas de hoy", systemImage: "sparkles")

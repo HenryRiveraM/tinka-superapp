@@ -27,25 +27,14 @@ struct LoginView: View {
 
     // MARK: - Background
     private var loginBackground: some View {
-        ZStack {
-            LinearGradient(colors: [Color(hex: "0A0F1E"), Color(hex: "1A0F3E")],
-                           startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea()
-            RadialGradient(colors: [TinkaColor.royalPurple.opacity(0.35), .clear],
-                           center: .top, startRadius: 80, endRadius: 400).ignoresSafeArea()
-        }
+        TinkaBackgroundView(style: .dark)
     }
 
     // MARK: - Logo
     private var logoSection: some View {
         VStack(spacing: 16) {
             Spacer().frame(height: 60)
-            ZStack {
-                Circle()
-                    .fill(LinearGradient.tinkaPrimary)
-                    .frame(width: 80, height: 80)
-                    .shadow(color: TinkaColor.magenta.opacity(0.5), radius: 20)
-                Text("T").font(.tinka(42, weight: .black)).foregroundColor(.white)
-            }
+            TinkaBrandLogo(size: 84)
             VStack(spacing: 6) {
                 Text("Tinka").font(.tinka(34, weight: .black)).foregroundColor(.white)
                 Text("Tu asistente de negocios").font(.tinka(15)).foregroundColor(.white.opacity(0.55))
@@ -88,7 +77,7 @@ struct LoginView: View {
 
             Button { showReset = true } label: {
                 Text("¿Olvidaste tu contraseña?")
-                    .font(.tinka(14)).foregroundColor(TinkaColor.royalPurple)
+                    .font(.tinka(14, weight: .semibold)).foregroundColor(.white.opacity(0.72))
             }
 
             Divider().background(Color.white.opacity(0.15)).padding(.vertical, 4)
@@ -102,9 +91,9 @@ struct LoginView: View {
             }
         }
         .padding(24)
-        .background(Color.white.opacity(0.06))
+        .background(Color.white.opacity(0.075))
         .clipShape(RoundedRectangle(cornerRadius: 24))
-        .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.12)))
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.white.opacity(0.18)))
     }
 
     // MARK: - Helpers
@@ -116,11 +105,15 @@ struct LoginView: View {
             Image(systemName: icon).foregroundColor(TinkaColor.royalPurple)
                 .frame(width: 20)
             if isSecure {
-                SecureField(placeholder, text: text)
+                SecureField(text: text, prompt: Text(placeholder).foregroundColor(.white.opacity(0.58))) {
+                    Text(placeholder)
+                }
                     .font(.tinka(15)).foregroundColor(.white)
                     .autocorrectionDisabled()
             } else {
-                TextField(placeholder, text: text)
+                TextField(text: text, prompt: Text(placeholder).foregroundColor(.white.opacity(0.58))) {
+                    Text(placeholder)
+                }
                     .font(.tinka(15)).foregroundColor(.white)
                     .keyboardType(keyboard)
                     .textContentType(keyboard == .emailAddress ? .emailAddress : .none)
@@ -129,9 +122,9 @@ struct LoginView: View {
             }
         }
         .padding(16)
-        .background(Color.white.opacity(0.08))
+        .background(Color.white.opacity(0.14))
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.15)))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.22)))
     }
 
     private func doSignIn() {
@@ -150,6 +143,7 @@ struct LoginView: View {
             }
         }
     }
+
 }
 
 // MARK: - Reset Password View
@@ -163,8 +157,7 @@ struct ResetPasswordView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                LinearGradient(colors: [Color(hex: "0A0F1E"), Color(hex: "1A0F3E")],
-                               startPoint: .top, endPoint: .bottom).ignoresSafeArea()
+                TinkaBackgroundView(style: .dark)
                 VStack(spacing: 24) {
                     Spacer().frame(height: 20)
                     Image(systemName: "lock.rotation").font(.system(size: 50))
@@ -181,14 +174,16 @@ struct ResetPasswordView: View {
                         }
                     } else {
                         VStack(spacing: 16) {
-                            TextField("Correo electrónico", text: $email)
+                            TextField(text: $email, prompt: Text("Correo electrónico").foregroundColor(.white.opacity(0.58))) {
+                                Text("Correo electrónico")
+                            }
                                 .font(.tinka(15)).foregroundColor(.white)
                                 .keyboardType(.emailAddress).autocapitalization(.none)
                                 .autocorrectionDisabled()
                                 .padding(16)
-                                .background(Color.white.opacity(0.08))
+                                .background(Color.white.opacity(0.14))
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.15)))
+                                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.white.opacity(0.22)))
                             if !error.isEmpty {
                                 Text(error).font(.tinka(13)).foregroundColor(TinkaColor.red)
                             }

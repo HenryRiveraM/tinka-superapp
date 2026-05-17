@@ -38,11 +38,7 @@ struct ProfileView: View {
     }
 
     private var background: some View {
-        ZStack {
-            LinearGradient.tinkaSoftBackground.ignoresSafeArea()
-            Circle().fill(TinkaColor.magenta.opacity(0.1)).frame(width: 280)
-                .blur(radius: 80).offset(x: -120, y: -220)
-        }
+        TinkaBackgroundView(style: .light)
     }
 
     private var profileHeader: some View {
@@ -162,6 +158,11 @@ struct ProfileView: View {
 
     private func loadProfile() async {
         profile = try? await TinkaDataService.shared.fetchProfile()
+        if let profile {
+            AppState.shared.upsertLocalBusinessProfile(profile)
+        } else {
+            AppState.shared.businessProfile = nil
+        }
     }
 
     private func doSignOut() {
@@ -192,7 +193,7 @@ struct EditProfileSheet: View {
     var body: some View {
         NavigationView {
             ZStack {
-                LinearGradient.tinkaSoftBackground.ignoresSafeArea()
+                TinkaBackgroundView(style: .light)
                 ScrollView {
                     VStack(spacing: 18) {
                         editField("Nombre completo", $ownerName)

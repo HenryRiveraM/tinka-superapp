@@ -26,10 +26,7 @@ struct SalesView: View {
     }
 
     private var background: some View {
-        ZStack {
-            LinearGradient.tinkaSoftBackground.ignoresSafeArea()
-            Circle().fill(TinkaColor.deepBlue.opacity(0.13)).frame(width: 300).blur(radius: 80).offset(x: 150, y: -250)
-        }
+        TinkaBackgroundView(style: .light)
     }
 
     private var salesHeader: some View {
