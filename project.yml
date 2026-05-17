@@ -55,10 +55,6 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-    dependencies:
-      - package: supabase-swift
-        product: Supabase
-
 schemes:
   design-zone:
     build:
@@ -68,7 +64,3 @@ schemes:
       config: Debug
     archive:
       config: Release
-packages:
-  supabase-swift:
-    url: https://github.com/supabase/supabase-swift
-    branch: main

@@ -68,7 +68,7 @@ struct RegisterView: View {
             sectionLabel("INFORMACIÓN PERSONAL")
             regField("person.fill", "Nombre completo", $ownerName)
             regField("envelope.fill", "Correo electrónico", $email,
-                     keyboard: .emailAddress, caps: .none)
+                     keyboard: .emailAddress, caps: .never)
             regField("lock.fill", "Contraseña (mín. 6 caracteres)", $password, isSecure: true)
             regField("lock.fill", "Confirmar contraseña", $confirmPassword, isSecure: true)
             if !confirmPassword.isEmpty && password != confirmPassword {

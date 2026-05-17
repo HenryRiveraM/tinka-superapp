@@ -6,7 +6,6 @@ struct ProfileView: View {
     @State private var profile: DBBusinessProfile? = nil
     @State private var showEditSheet = false
     @State private var showLogoutAlert = false
-    @State private var isLoadingProfile = false
 
     var ownerInitial: String {
         let name = profile?.ownerName ?? auth.userEmail ?? "?"
@@ -38,15 +37,14 @@ struct ProfileView: View {
         } message: { Text("¿Estás segura que deseas cerrar sesión?") }
     }
 
-    // MARK: - Background
     private var background: some View {
         ZStack {
             LinearGradient.tinkaSoftBackground.ignoresSafeArea()
-            Circle().fill(TinkaColor.magenta.opacity(0.1)).frame(width: 280).blur(radius: 80).offset(x: -120, y: -220)
+            Circle().fill(TinkaColor.magenta.opacity(0.1)).frame(width: 280)
+                .blur(radius: 80).offset(x: -120, y: -220)
         }
     }
 
-    // MARK: - Header
     private var profileHeader: some View {
         VStack(spacing: 16) {
             ZStack {
@@ -83,7 +81,6 @@ struct ProfileView: View {
         .padding(.vertical, 8)
     }
 
-    // MARK: - Business card
     private var businessCard: some View {
         VStack(spacing: 0) {
             infoRow("storefront.fill", TinkaColor.deepBlue, "Negocio",
@@ -102,7 +99,6 @@ struct ProfileView: View {
         .glassCard()
     }
 
-    // MARK: - Stats
     private var statsRow: some View {
         HStack(spacing: 12) {
             statTile("\(state.tinkaScore)", "Tinka Score", TinkaColor.magenta)
@@ -119,7 +115,6 @@ struct ProfileView: View {
         .frame(maxWidth: .infinity).padding(14).glassCard(cornerRadius: 16)
     }
 
-    // MARK: - Account section
     private var accountSection: some View {
         VStack(spacing: 0) {
             Text("Cuenta").font(.tinka(11, weight: .semibold)).foregroundColor(TinkaColor.subtleText)
@@ -129,12 +124,11 @@ struct ProfileView: View {
             Divider().padding(.horizontal, 16)
             infoRow("shield.fill", TinkaColor.royalPurple, "Seguridad", "Datos protegidos con RLS", chevron: false)
             Divider().padding(.horizontal, 16)
-            infoRow("info.circle.fill", TinkaColor.subtleText, "Versión", "1.0.0 Demo", chevron: false)
+            infoRow("info.circle.fill", TinkaColor.subtleText, "Versión", "1.0.0", chevron: false)
         }
         .glassCard()
     }
 
-    // MARK: - Logout
     private var logoutButton: some View {
         Button { showLogoutAlert = true } label: {
             HStack {
@@ -149,7 +143,6 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - Helpers
     private func infoRow(_ icon: String, _ color: Color, _ label: String,
                           _ value: String, chevron: Bool = true) -> some View {
         HStack(spacing: 12) {
@@ -168,14 +161,12 @@ struct ProfileView: View {
     }
 
     private func loadProfile() async {
-        isLoadingProfile = true
         profile = try? await TinkaDataService.shared.fetchProfile()
-        isLoadingProfile = false
     }
 
     private func doSignOut() {
         Task {
-            try? await auth.signOut()
+            await auth.signOut()
             AppState.shared.clearAll()
         }
     }
@@ -193,10 +184,10 @@ struct EditProfileSheet: View {
     @State private var city = ""
     @State private var phone = ""
     @State private var isSaving = false
-    @State private var error = ""
+    @State private var errorMsg = ""
 
-    private let businessTypes = ["Comida", "Bebidas", "Panadería", "Mercado", "Ropa",
-                                  "Tecnología", "Servicio", "Transporte", "Otro"]
+    private let businessTypes = ["Comida", "Bebidas", "Panadería", "Mercado",
+                                  "Ropa", "Tecnología", "Servicio", "Transporte", "Otro"]
 
     var body: some View {
         NavigationView {
@@ -208,29 +199,9 @@ struct EditProfileSheet: View {
                         editField("Nombre del negocio", $businessName)
                         editField("Ciudad", $city)
                         editField("Teléfono", $phone, keyboard: .phonePad)
-
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Tipo de negocio").font(.tinka(13, weight: .semibold))
-                                .foregroundColor(TinkaColor.subtleText)
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(businessTypes, id: \.self) { t in
-                                        Button { businessType = t } label: {
-                                            Text(t).font(.tinka(13, weight: businessType == t ? .bold : .medium))
-                                                .foregroundColor(businessType == t ? .white : TinkaColor.darkNavy)
-                                                .padding(.horizontal, 14).padding(.vertical, 8)
-                                                .background(businessType == t
-                                                    ? AnyShapeStyle(LinearGradient.tinkaPrimary)
-                                                    : AnyShapeStyle(Color.white.opacity(0.8)))
-                                                .clipShape(Capsule())
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        if !error.isEmpty {
-                            Text(error).font(.tinka(13)).foregroundColor(TinkaColor.red)
+                        businessTypeRow
+                        if !errorMsg.isEmpty {
+                            Text(errorMsg).font(.tinka(13)).foregroundColor(TinkaColor.red)
                         }
                     }
                     .padding(20)
@@ -250,11 +221,27 @@ struct EditProfileSheet: View {
                 }
             }
         }
-        .onAppear {
-            if let p = profile {
-                ownerName = p.ownerName; businessName = p.businessName
-                businessType = p.businessType.isEmpty ? "Comida" : p.businessType
-                city = p.city; phone = p.phone
+        .onAppear { populateFields() }
+    }
+
+    private var businessTypeRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Tipo de negocio").font(.tinka(13, weight: .semibold)).foregroundColor(TinkaColor.subtleText)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(businessTypes, id: \.self) { t in
+                        Button { businessType = t } label: {
+                            Text(t)
+                                .font(.tinka(13, weight: businessType == t ? .bold : .medium))
+                                .foregroundColor(businessType == t ? .white : TinkaColor.darkNavy)
+                                .padding(.horizontal, 14).padding(.vertical, 8)
+                                .background(businessType == t
+                                    ? AnyShapeStyle(LinearGradient.tinkaPrimary)
+                                    : AnyShapeStyle(Color.white.opacity(0.8)))
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
             }
         }
     }
@@ -273,20 +260,32 @@ struct EditProfileSheet: View {
         }
     }
 
+    private func populateFields() {
+        ownerName = profile?.ownerName ?? ""
+        businessName = profile?.businessName ?? ""
+        businessType = profile?.businessType.isEmpty == false ? profile!.businessType : "Comida"
+        city = profile?.city ?? ""
+        phone = profile?.phone ?? ""
+    }
+
     private func save() {
         guard let uid = auth.userId else { return }
-        isSaving = true; error = ""
+        isSaving = true; errorMsg = ""
         let updated = DBBusinessProfile(
-            id: profile?.id ?? UUID(), userId: uid,
-            ownerName: ownerName, businessName: businessName,
-            businessType: businessType, city: city, phone: phone, createdAt: nil
+            id: profile?.id ?? UUID().uuidString,
+            userId: uid,
+            ownerName: ownerName,
+            businessName: businessName,
+            businessType: businessType,
+            city: city,
+            phone: phone
         )
         Task {
             do {
                 try await TinkaDataService.shared.upsertProfile(updated)
                 await MainActor.run { profile = updated; isSaving = false; dismiss() }
             } catch {
-                await MainActor.run { self.error = "Error al guardar."; isSaving = false }
+                await MainActor.run { errorMsg = "Error al guardar."; isSaving = false }
             }
         }
     }
